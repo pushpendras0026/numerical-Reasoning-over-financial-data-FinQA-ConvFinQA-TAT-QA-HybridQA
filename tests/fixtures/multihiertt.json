@@ -1,0 +1,25 @@
+[
+  {
+    "uid": "fixture-multi",
+    "paragraphs": [
+      "Amounts in millions of dollars. Revenue includes both regions."
+    ],
+    "tables": [
+      "<table><tr><th rowspan=\"2\">Region</th><th colspan=\"2\">Revenue</th></tr><tr><th>2020</th><th>2021</th></tr><tr><td>North</td><td>10</td><td>15</td></tr></table>",
+      "<table><tr><th>Year</th><th>Cost</th></tr><tr><td>2021</td><td>3</td></tr></table>"
+    ],
+    "table_description": {
+      "0-2-2": "DO NOT USE PREPROCESSED DESCRIPTION"
+    },
+    "qa": {
+      "question": "What is 2021 North revenue minus 2021 cost?",
+      "answer": 12,
+      "program": "subtract(15, 3)",
+      "table_evidence": [
+        "0-2-2",
+        "1-1-1"
+      ],
+      "text_evidence": []
+    }
+  }
+]

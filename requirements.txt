@@ -1,0 +1,6 @@
+# Optional utilities for result plots and resource measurements.
+matplotlib==3.11.1
+psutil==7.2.2
+
+# Optional Spark-backed data preparation (Python 3.12 environment used locally).
+pyspark==3.5.3

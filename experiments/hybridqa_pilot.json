@@ -1,0 +1,25 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.8-flash",
+  "seed": 2626,
+  "spending_ceiling_usd": 0,
+  "evidence_cap": 4000,
+  "variants": [
+    "ordinary",
+    "dependency",
+    "length_matched"
+  ],
+  "max_generation_calls": 180,
+  "ablation": "none",
+  "selection": "subset",
+  "sample_size": 20,
+  "dataset": "hybridqa",
+  "split": "dev",
+  "source": "../HybridQA/released_data/dev.json",
+  "corpus": "auto",
+  "corpus_candidates": [
+    "data/WikiTables-WithLinks",
+    "../HybridQA/WikiTables-WithLinks",
+    "../WikiTables-WithLinks"
+  ]
+}

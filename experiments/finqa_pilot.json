@@ -1,0 +1,24 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.8-flash",
+  "seed": 2626,
+  "spending_ceiling_usd": 0,
+  "evidence_cap": 4000,
+  "variants": [
+    "ordinary",
+    "dependency",
+    "length_matched"
+  ],
+  "max_generation_calls": 180,
+  "ablation": "none",
+  "selection": "subset",
+  "sample_size": 20,
+  "dataset": "finqa",
+  "split": "dev",
+  "source": "../FinQA/dataset/dev.json",
+  "exclude_ids": [
+    "V/2008/page_17.pdf-1",
+    "C/2017/page_328.pdf-1",
+    "DVN/2007/page_58.pdf-2"
+  ]
+}

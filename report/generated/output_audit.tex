@@ -1,0 +1,24 @@
+\section{Recovery and output validation audit}
+The four original bounded runs were blocked before inference by a missing
+\texttt{OLLAMA\_BASE\_URL} environment variable. Each had zero saved or failed
+predictions; pending method outputs were 60 for TAT-QA, 60 for TAT-HQA, 60 for
+MultiHiertt, and 66 for ConvFinQA. No inference ledger existed for those runs.
+The recorded local Windows endpoint was restored and its model digest verified;
+a real TAT-QA request completed before bulk dispatch. That exact request is
+reused from its ledger, including its original response and attempt metadata.
+The frozen IDs, ordering, prompts, evidence cap, schema and decoding settings
+were retained. No FinQA generation was repeated.
+
+The saved-output audit examined all 1344 FinQA development rows labelled
+``Malformed structured output'', plus 92 partial-test rows, 35 pilot rows and
+8 smoke rows. All were valid JSON satisfying the broad response schema, but
+violated the kind-specific plan contract. For example, table aggregation
+omitted its required row, and extraction returned arithmetic steps instead of
+its required operand. Every malformed row failed these declared plan rules;
+none passed the rules and was then rejected. The schema admits combinations
+that the interpreter disallows; this is a limitation of generation constraints,
+not evidence that these returned plans have valid executable meanings.
+Relaxing the executor or deleting fields would reinterpret model answers.
+Accordingly the original FinQA scores remain unchanged, and no corrected
+inference rerun is mixed with them. The generic error label obscures this
+distinction; the detailed audit is saved separately.

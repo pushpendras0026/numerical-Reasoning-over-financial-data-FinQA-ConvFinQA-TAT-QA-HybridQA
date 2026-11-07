@@ -1,0 +1,519 @@
+[
+  {
+    "table": {
+      "uid": "a3e9cad512b8d3ff0cd6e50774007eeb",
+      "table": [
+        [
+          "(in thousands of $)",
+          "2019",
+          "2018"
+        ],
+        [
+          "Statement of income",
+          "",
+          ""
+        ],
+        [
+          "Liquefaction services revenue",
+          "218,096",
+          "127,625"
+        ],
+        [
+          "Realized and unrealized (losses)/gains on the oil derivative instrument",
+          "(26,001)",
+          "16,767"
+        ],
+        [
+          "Statement of cash flows",
+          "",
+          ""
+        ],
+        [
+          "Net debt repayments",
+          "(243,513)",
+          "(30,300)"
+        ],
+        [
+          "Net debt receipts",
+          "129,454",
+          "—"
+        ]
+      ]
+    },
+    "paragraphs": [
+      {
+        "uid": "0621be63a7971bbb76361e87fdd25674",
+        "order": 1,
+        "text": "Summarized financial information of Hilli LLC"
+      },
+      {
+        "uid": "76573d23233ebdfc3c89609c6372e951",
+        "order": 2,
+        "text": "The most significant impacts of Hilli LLC VIE's operations on our consolidated statements of income and consolidated statements of cash flows, as of December 31, 2019 and 2018, are as follows:"
+      }
+    ],
+    "questions": [
+      {
+        "uid": "dccb70700ecee941b785b5bc9fea7d40",
+        "order": 5,
+        "question": "In which year would the realized and unrealized (losses)/gains on the oil derivative instrument be higher if the amount in 2019 was 20,380 thousand?",
+        "answer": [
+          "2019"
+        ],
+        "derivation": "20,380 > 16,767",
+        "answer_type": "span",
+        "answer_from": "table",
+        "scale": "",
+        "facts": [
+          "2019"
+        ],
+        "mapping": {
+          "table": [
+            [
+              0,
+              1
+            ]
+          ]
+        },
+        "rel_question": "4",
+        "counterfactual": 1,
+        "original_question_uid": "e16b101cd6f67b726fbb55d889759406",
+        "question_if_part": "if the amount in 2019 was 20,380 thousand?"
+      },
+      {
+        "uid": "e982f2be72b37a222d61fe645df00168",
+        "order": 7,
+        "question": "What would be the change in net debt receipts between 2018 and 2019 if the amount in 2018 was 100,250 thousand instead?",
+        "answer": 29204,
+        "derivation": "129,454 - 100,250 ",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "scale": "thousand",
+        "facts": [
+          "100,250",
+          "129,454"
+        ],
+        "mapping": {
+          "table": [
+            [
+              6,
+              1
+            ]
+          ],
+          "question": [
+            [
+              94,
+              101
+            ]
+          ]
+        },
+        "rel_question": "6",
+        "counterfactual": 1,
+        "original_question_uid": "b68356a11ee8d39571d44b087b1558c7",
+        "question_if_part": "if the amount in 2018 was 100,250 thousand instead?",
+        "if_op": "SWAP",
+        "if_tagging": [
+          "0",
+          "100,250"
+        ],
+        "original_answer_mapping": {
+          "table": [
+            [
+              6,
+              1
+            ],
+            [
+              0,
+              1
+            ]
+          ]
+        },
+        "original_derivation": "129,454 - 0 ",
+        "if_mapping": {
+          "question": [
+            [
+              94,
+              101
+            ]
+          ]
+        },
+        "counter_facts": [
+          "100,250",
+          "129,454"
+        ]
+      },
+      {
+        "uid": "1a04c88fe861d8c6e188a7e4e3abb6b2",
+        "order": 9,
+        "question": "What would be the percentage change in liquefaction services revenue between 2018 and 2019 if the amount in 2019 was 150,710 thousand?",
+        "answer": 18.09,
+        "derivation": "(150,710 - 127,625)/127,625 ",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "scale": "percent",
+        "facts": [
+          "127,625",
+          "150,710"
+        ],
+        "mapping": {
+          "table": [
+            [
+              2,
+              2
+            ]
+          ],
+          "question": [
+            [
+              117,
+              124
+            ]
+          ]
+        },
+        "rel_question": "8",
+        "counterfactual": 1,
+        "original_question_uid": "713e3ad13d6c8f2b3e61c636fa76c1cc",
+        "question_if_part": "if the amount in 2019 was 150,710 thousand?",
+        "if_op": "SWAP",
+        "if_tagging": [
+          "218,096",
+          "150,710"
+        ],
+        "original_answer_mapping": {
+          "table": [
+            [
+              2,
+              2
+            ],
+            [
+              2,
+              1
+            ]
+          ]
+        },
+        "original_derivation": "(218,096 - 127,625)/127,625 ",
+        "if_mapping": {
+          "question": [
+            [
+              117,
+              124
+            ]
+          ],
+          "table": [
+            [
+              2,
+              1
+            ]
+          ]
+        },
+        "counter_facts": [
+          "127,625",
+          "150,710"
+        ]
+      }
+    ]
+  },
+  {
+    "table": {
+      "uid": "24b827b9363a983d137922c8c97569c0",
+      "table": [
+        [
+          "($ in millions except per share amounts)",
+          "",
+          "",
+          ""
+        ],
+        [
+          "For the year ended December 31:*",
+          "2019",
+          "2018",
+          "Yr.-to-Yr. Percent Change"
+        ],
+        [
+          "Net income as reported",
+          "$ 9,431",
+          "8,728*",
+          "8.1%"
+        ],
+        [
+          "Income/(loss) from discontinued operations, net of tax",
+          "(4)",
+          "5",
+          "NM"
+        ],
+        [
+          "Income from continuing operations",
+          "$ 9,435",
+          "8,723*",
+          "8.2%"
+        ],
+        [
+          "Non-operating adjustments (net of tax)",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Acquisition-related charges",
+          "1,343",
+          "649",
+          "107.0"
+        ],
+        [
+          "Non-operating retirement-related costs/(income)",
+          "512",
+          "1,248",
+          "(58.9)"
+        ],
+        [
+          "U.S. tax reform charge",
+          "146",
+          "2,037",
+          "(92.8)"
+        ],
+        [
+          "Operating (non-GAAP) earnings",
+          "$11,436",
+          "$12,657",
+          "(9.6)%"
+        ],
+        [
+          "Diluted operating (non-GAAP) earnings per share",
+          "$ 12.81",
+          "$ 13.81",
+          "(7.2)%"
+        ]
+      ]
+    },
+    "paragraphs": [
+      {
+        "uid": "f64a8e376d509799b780700ad574109c",
+        "order": 1,
+        "text": "The following table provides the company’s operating (non-GAAP) earnings for 2019 and 2018. See page 46 for additional information."
+      },
+      {
+        "uid": "0460b0cb4b7a8453d1c0f6d1c63d39d1",
+        "order": 2,
+        "text": "* 2019 results were impacted by Red Hat purchase accounting and acquisition-related activity."
+      },
+      {
+        "uid": "5c6df53fa4362f9d6bc603b85b44643e",
+        "order": 3,
+        "text": "** Includes charges of $2.0 billion in 2018 associated with U.S. tax reform."
+      }
+    ],
+    "questions": [
+      {
+        "uid": "3dcb4540ea386e8ca59c8a082e25e258",
+        "order": 5,
+        "question": "If the Net income in 2018 increased to 9,200 million, what is the revised increase / (decrease)?",
+        "answer": 231,
+        "derivation": "9,431 - 9,200",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "scale": "million",
+        "facts": [
+          "9,200",
+          "9,431"
+        ],
+        "mapping": {
+          "table": [
+            [
+              2,
+              1
+            ]
+          ],
+          "question": [
+            [
+              39,
+              44
+            ]
+          ]
+        },
+        "rel_question": "4",
+        "counterfactual": 1,
+        "original_question_uid": "e9649a4311f4919527237fc3b4a937ec",
+        "question_if_part": "If the Net income in 2018 increased to 9,200 million, ",
+        "if_op": "SWAP",
+        "if_tagging": [
+          "8,728",
+          "9,200"
+        ],
+        "original_answer_mapping": {
+          "table": [
+            [
+              2,
+              2
+            ],
+            [
+              2,
+              1
+            ],
+            [
+              2,
+              2
+            ]
+          ]
+        },
+        "original_derivation": "9,431 - 8,728",
+        "if_mapping": {
+          "question": [
+            [
+              39,
+              44
+            ]
+          ],
+          "table": [
+            [
+              2,
+              2
+            ]
+          ]
+        },
+        "counter_facts": [
+          "9,200",
+          "9,431"
+        ]
+      },
+      {
+        "uid": "c04974e27d46dbad589b24f0eebe8a0a",
+        "order": 7,
+        "question": "If the Income from continuing operations in 2018 increased to 10,000 million, what is the revised increase / (decrease)?",
+        "answer": -565,
+        "derivation": "9,435 - 10,000",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "scale": "million",
+        "facts": [
+          "10,000",
+          "9,435"
+        ],
+        "mapping": {
+          "table": [
+            [
+              4,
+              1
+            ]
+          ],
+          "question": [
+            [
+              62,
+              68
+            ]
+          ]
+        },
+        "rel_question": "6",
+        "counterfactual": 1,
+        "original_question_uid": "f521be3ab41936ccb9c46ee442ce1ab6",
+        "question_if_part": "If the Income from continuing operations in 2018 increased to 10,000 million, ",
+        "if_op": "SWAP",
+        "if_tagging": [
+          "8,723",
+          "10,000"
+        ],
+        "original_answer_mapping": {
+          "table": [
+            [
+              4,
+              1
+            ],
+            [
+              4,
+              2
+            ],
+            [
+              4,
+              2
+            ]
+          ]
+        },
+        "original_derivation": "9,435 - 8,723",
+        "if_mapping": {
+          "question": [
+            [
+              62,
+              68
+            ]
+          ],
+          "table": [
+            [
+              4,
+              2
+            ]
+          ]
+        },
+        "counter_facts": [
+          "10,000",
+          "9,435"
+        ]
+      },
+      {
+        "uid": "347cdc127d0153809e09fcf5271ba724",
+        "order": 9,
+        "question": "What was the increase / (decrease) in Operating (non-GAAP) earnings from 2018 to 2019 if it increased to 13,000 in 2018?",
+        "answer": -1564,
+        "derivation": "11,436 - 13,000",
+        "answer_type": "arithmetic",
+        "answer_from": "table",
+        "scale": "million",
+        "facts": [
+          "11,436",
+          "13,000"
+        ],
+        "mapping": {
+          "table": [
+            [
+              9,
+              1
+            ]
+          ],
+          "question": [
+            [
+              105,
+              111
+            ]
+          ]
+        },
+        "rel_question": "8",
+        "counterfactual": 1,
+        "original_question_uid": "b5e9af0f9ac96f697491f6394f950668",
+        "question_if_part": "if it increased to 13,000 in 2018?",
+        "if_op": "SWAP",
+        "if_tagging": [
+          "12,657",
+          "13,000"
+        ],
+        "original_answer_mapping": {
+          "table": [
+            [
+              9,
+              1
+            ],
+            [
+              9,
+              2
+            ]
+          ]
+        },
+        "original_derivation": "11,436 - 12,657",
+        "if_mapping": {
+          "question": [
+            [
+              105,
+              111
+            ]
+          ],
+          "table": [
+            [
+              9,
+              2
+            ]
+          ]
+        },
+        "counter_facts": [
+          "11,436",
+          "13,000"
+        ]
+      }
+    ]
+  }
+]

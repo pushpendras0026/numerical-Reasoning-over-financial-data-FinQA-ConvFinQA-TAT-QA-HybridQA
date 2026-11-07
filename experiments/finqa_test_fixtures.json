@@ -1,0 +1,16 @@
+{
+  "label": "HANDWRITTEN TEST FIXTURES, NOT MODEL RESULTS",
+  "selection": "first ten records in pinned FinQA train.json; order fixed by IDs below",
+  "examples": [
+    {"id":"ADI/2009/page_49.pdf-1","steps":[["divide","100","100"],["divide","3.8",0]]},
+    {"id":"ABMD/2012/page_75.pdf-1","steps":[["multiply","607","18.13"],["multiply",0,"const_1000"],["multiply","3.3","const_1000000"],["greater",1,2]]},
+    {"id":"AAL/2018/page_13.pdf-2","steps":[["divide","9896","23.6%"]]},
+    {"id":"INTC/2013/page_71.pdf-4","steps":[["divide","14001","26302"]]},
+    {"id":"ETR/2008/page_313.pdf-3","steps":[["subtract","959.2","991.1"],["divide",0,"991.1"]]},
+    {"id":"C/2010/page_272.pdf-1","steps":[["divide","2.5","1.6"],["divide",0,"1.6"]]},
+    {"id":"AMT/2012/page_121.pdf-1","steps":[["add","75.0","72.7"],["divide",0,"20"]]},
+    {"id":"GIS/2019/page_45.pdf-1","steps":[["divide","1786.2","2807.0"]]},
+    {"id":"IPG/2009/page_89.pdf-3","steps":[["subtract","34.8","1.2"],["divide",0,"34.8"],["multiply",1,"const_100"]]},
+    {"id":"CDNS/2018/page_32.pdf-2","steps":[["multiply","1327657","42.61"],["divide",0,"const_1000000"]]}
+  ]
+}

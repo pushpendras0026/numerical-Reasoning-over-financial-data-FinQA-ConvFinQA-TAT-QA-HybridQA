@@ -1,0 +1,56 @@
+\section{Measured results and coverage}
+FinQA uses the full 883-question development split. The other datasets use the original frozen development subsets: 20 questions each for TAT-QA, TAT-HQA and MultiHiertt, and 22 ordered ConvFinQA turns in complete conversations. Seed 2626 and all three packing methods are fixed; no selected examples overlap the earlier pilots. HybridQA is unevaluated: the genuine linked evidence corpus remains missing.
+FinQA test remains incomplete (162 saved rows, 54 per method, one unresolved inflight request) and is excluded from architectural comparisons.
+\begin{center}\small\setlength{\tabcolsep}{2pt}\begin{tabular}{llrrr}
+Dataset & Method & $N$ & Saved & Score\\\hline
+FinQA & O & 883 & 883 & 0.00\\
+FinQA & D & 883 & 883 & 0.23\\
+FinQA & L & 883 & 883 & 0.00\\
+TAT-QA & O & 20 & 20 & 0.00\\
+TAT-QA & D & 20 & 20 & 0.00\\
+TAT-QA & L & 20 & 20 & 0.00\\
+TAT-HQA & O & 20 & 20 & 0.00\\
+TAT-HQA & D & 20 & 20 & 0.00\\
+TAT-HQA & L & 20 & 20 & 0.00\\
+MultiHiertt & O & 20 & 20 & 0.00\\
+MultiHiertt & D & 20 & 20 & 0.00\\
+MultiHiertt & L & 20 & 20 & 0.00\\
+ConvFinQA & O & 22 & 22 & 0.00\\
+ConvFinQA & D & 22 & 22 & 0.00\\
+ConvFinQA & L & 22 & 22 & 0.00\\
+\end{tabular}\end{center}
+O: ordinary; D: dependency; L: length matched. Scores are percentages: official execution accuracy for FinQA/ConvFinQA and official F1 for the other datasets. All selected examples remain in the denominator; missing, infrastructure-failed, abstained and invalid answers receive zero. Saved coverage includes invalid answers, rather than equating response completion with valid execution.
+\begin{center}\small\setlength{\tabcolsep}{2pt}\begin{tabular}{llrrrrr}
+Dataset & Method & V & A & E & I & M\\\hline
+FinQA & O & 0 & 82 & 801 & 0 & 0\\
+FinQA & D & 4 & 98 & 781 & 0 & 0\\
+FinQA & L & 1 & 130 & 752 & 0 & 0\\
+TAT-QA & O & 0 & 1 & 19 & 0 & 0\\
+TAT-QA & D & 0 & 6 & 14 & 0 & 0\\
+TAT-QA & L & 0 & 3 & 17 & 0 & 0\\
+TAT-HQA & O & 0 & 5 & 15 & 0 & 0\\
+TAT-HQA & D & 0 & 9 & 11 & 0 & 0\\
+TAT-HQA & L & 0 & 10 & 10 & 0 & 0\\
+MultiHiertt & O & 0 & 10 & 10 & 0 & 0\\
+MultiHiertt & D & 0 & 15 & 5 & 0 & 0\\
+MultiHiertt & L & 0 & 13 & 7 & 0 & 0\\
+ConvFinQA & O & 0 & 6 & 16 & 0 & 0\\
+ConvFinQA & D & 0 & 7 & 15 & 0 & 0\\
+ConvFinQA & L & 0 & 9 & 13 & 0 & 0\\
+\end{tabular}\end{center}
+V: valid executable/exportable answer; A: abstention; E: execution, plan-validation or official-export failure; I: infrastructure failure; M: missing output. A missing-only run is reported as unevaluated rather than an observed zero score.
+TAT-QA: status completed; saved 60/60, pending 0.
+TAT-HQA: status completed; saved 60/60, pending 0.
+MultiHiertt: status completed; saved 60/60, pending 0.
+ConvFinQA: status completed; saved 66/66, pending 0.
+finqa: dependency minus ordinary execution = 0.00227; paired document/conversation bootstrap 95\% interval [0.00000, 0.00577], 299 clusters (1000 resamples; seed 2626).
+tatqa: dependency minus ordinary f1 = 0.00000; paired document/conversation bootstrap 95\% interval [0.00000, 0.00000], 19 clusters (1000 resamples; seed 2626).
+tathqa: dependency minus ordinary f1 = 0.00000; paired document/conversation bootstrap 95\% interval [0.00000, 0.00000], 20 clusters (1000 resamples; seed 2626).
+multihiertt: dependency minus ordinary f1 = 0.00000; paired document/conversation bootstrap 95\% interval [0.00000, 0.00000], 20 clusters (1000 resamples; seed 2626).
+convfinqa: dependency minus ordinary execution = 0.00000; paired document/conversation bootstrap 95\% interval [0.00000, 0.00000], 6 clusters (1000 resamples; seed 2626).
+Subsets and rare successes yield unstable intervals and cannot establish population improvement. Zero-width bootstrap intervals for all-zero samples reflect absent empirical variation and do not establish equivalence. Related datasets share source tables, so scores and uncertainty are kept separate. FinQA dependency packing achieved two correct executions out of 883, compared with none for ordinary and length matched; this is weak evidence rather than guaranteed improvement. No changes to prompts or outputs were tuned against evaluation answers.
+Failure (FinQA, ordinary, V/2008/page\_17.pdf-1): Malformed structured output.
+Failure (TAT-QA, ordinary, 076daf33-1a7f-4255-8e27-764a43d97233): 'The Group’s free cash flow grew 1.2\% to S\$3.65 billion.'.
+Failure (TAT-HQA, ordinary, 06e1818b3dfbd0d1f89818956b4c493a): Malformed structured output.
+Failure (MultiHiertt, ordinary, 2b1af05e4d4b4683828c1da7b0d2ab41): '23,385'.
+Failure (ConvFinQA, ordinary, Double\_MRO/2017/page\_111.pdf\_0): [<class 'decimal.ConversionSyntax'>].

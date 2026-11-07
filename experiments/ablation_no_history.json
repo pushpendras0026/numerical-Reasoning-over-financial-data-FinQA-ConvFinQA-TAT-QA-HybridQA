@@ -1,0 +1,19 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.8-flash",
+  "seed": 2626,
+  "spending_ceiling_usd": 0,
+  "evidence_cap": 4000,
+  "variants": [
+    "dependency"
+  ],
+  "max_generation_calls": 1000,
+  "ablation": "no_history",
+  "selection": "subset",
+  "sample_size": 5,
+  "dataset": "convfinqa",
+  "split": "dev",
+  "source": "../ConvFinQA/data.zip",
+  "member": "data/dev.json",
+  "selection_note": "5 whole conversations; report actual turns, not 20 questions"
+}

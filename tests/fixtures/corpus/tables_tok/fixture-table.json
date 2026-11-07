@@ -1,0 +1,27 @@
+{
+  "title": "Mosques",
+  "header": [
+    [
+      "Name",
+      []
+    ],
+    [
+      "City",
+      []
+    ]
+  ],
+  "data": [
+    [
+      [
+        "Great Mosque",
+        [
+          "/wiki/Great_Mosque"
+        ]
+      ],
+      [
+        "Herat",
+        []
+      ]
+    ]
+  ]
+}

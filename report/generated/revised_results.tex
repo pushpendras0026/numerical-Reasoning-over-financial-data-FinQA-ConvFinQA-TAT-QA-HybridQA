@@ -1,0 +1,57 @@
+\subsection{Revised evaluation and root-cause diagnosis}
+
+Training diagnostics exposed a mismatch between the broad output schema and the executable contract. Kind-specific schemas improved structural guidance. Versions 4--5 restricted arithmetic to a single operation; this is a capacity-limited ablation, not a general reasoning model. The final v5 measurements are summarized below. All original and intermediate results remain in the archived artifacts.
+
+\begin{center}\small\setlength{\tabcolsep}{3pt}\begin{tabular}{llrrrr}
+
+Dataset & Method & $N$ & Exec & Correct & Score\\\hline
+
+FinQA & O & 40 & 10 & 0 & 0.00\\
+
+FinQA & D & 40 & 7 & 0 & 0.00\\
+
+FinQA & L & 40 & 10 & 0 & 0.00\\
+
+TAT-QA & O & 40 & 11 & 0 & 0.45\\
+
+TAT-QA & D & 40 & 5 & 0 & 0.45\\
+
+TAT-QA & L & 40 & 11 & 0 & 0.00\\
+
+TAT-HQA & O & 40 & 14 & 0 & 0.00\\
+
+TAT-HQA & D & 40 & 14 & 0 & 0.00\\
+
+TAT-HQA & L & 40 & 16 & 0 & 0.00\\
+
+ConvFinQA & O & 141 & 38 & 0 & 0.00\\
+
+ConvFinQA & D & 141 & 21 & 0 & 0.00\\
+
+ConvFinQA & L & 141 & 29 & 0 & 0.00\\
+
+\end{tabular}\end{center}
+
+Score is official execution accuracy for FinQA/ConvFinQA and official F1 for TAT-QA/TAT-HQA, in percent. Exec counts local executions, including outputs without a supported official program export. Correct counts official execution matches or exact matches. Methods O/D/L denote ordinary, dependency and length-matched packing. These are development diagnostics: FinQA reuses an overlapping 40-question subset of the original full dev run; the other subsets exclude earlier frozen selections. ConvFinQA contains 141 turns in 40 complete conversations. Missing and failed outputs remain in the denominator.
+
+MultiHiertt v5 produced no executable training plans and was not scaled to development evaluation. HybridQA remains blocked by missing linked evidence. Neither is assigned a fabricated development score.
+
+\paragraph{Why the scores collapse.} Across the 783 saved v5 outputs, the following counts are derived directly from execution status and error messages. These categories describe interpreter failures, not semantic accuracy.
+
+\begin{center}\small\setlength{\tabcolsep}{2pt}\begin{tabular}{lrrrr}
+
+Dataset & Nonnum. & Partial & Placeholder & Exec\\\hline
+
+FinQA & 43 & 25 & 10 & 27\\
+
+TAT-QA & 21 & 7 & 14 & 27\\
+
+TAT-HQA & 28 & 14 & 19 & 44\\
+
+ConvFinQA & 107 & 27 & 76 & 124\\
+
+\end{tabular}\end{center}
+
+Nonnum. means the selected source substring could not be parsed as a number; Partial means only part of a numeric literal was selected; Placeholder means the model copied the instruction text ``exact supplied id instead of a supplied identifier. Additional failures include invalid spans, unknown evidence IDs, invalid table-row selections and abstentions. Some executable outputs calculate unrelated constants. Thus execution coverage alone does not demonstrate answer correctness. The one-operation restriction also prevents representing many growth, average and hypothetical calculations.
+
+\paragraph{Implemented recovery, pending live measurement.} A separate opt-in quote-grounded mode replaces long evidence IDs with local IDs and character offsets with exact source quotes. Quotes must occur exactly once in the selected fact; the code resolves their positions before the existing interpreter validates and executes them. Up to 16 operations and prior-step references are supported. Invented quotes, ambiguous matches and partial numeric operands are rejected. Existing modes and scores are preserved. A bounded recovery runner compares this mode with a direct-answer diagnostic on frozen development inputs. FinQA direct numeric checks remain auxiliary and are not official program scores. No new accuracy improvement is claimed: local inference was unreachable during this repair session.

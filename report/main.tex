@@ -1,0 +1,241 @@
+\pdfoutput=1
+\documentclass[11pt]{article}
+\usepackage{acl2023}
+\usepackage{times,latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{graphicx}
+\title{Dependency-Preserving Evidence Packing for Numerical Question Answering}
+\author{Pushpendra Singh \and Badri Bishal Das}
+\begin{document}
+\maketitle
+\begin{abstract}
+Financial questions require numbers to remain associated with their headers,
+units, document structure, and source links. We implement a shared answering
+pipeline with dataset-specific adapters and evaluate a controlled comparison of ordinary
+packing, dependency-preserving packing, and length-matched context expansion.
+The model and evidence cap are fixed within each comparison. The implementation
+uses prediction-only readers, deterministic lexical retrieval, validated answer
+plans, bounded numerical execution, and dataset-specific official scoring.
+Full FinQA development evaluation contains 883 questions per method; dependency
+packing yields two officially correct executions while ordinary packing yields none.
+Most original outputs fail execution validation. Training-only diagnostics motivate
+kind-specific schemas and compact instructions. A separately labeled single-operation
+arithmetic ablation is evaluated on 40 development questions each for FinQA,
+TAT-QA and TAT-HQA, plus 141 turns in 40 complete ConvFinQA conversations.
+FinQA is an authorized overlapping rerun; other expanded subsets are disjoint
+from prior selections. Executable coverage improves, but official scores remain
+near zero. MultiHiertt fails the executable training gate and HybridQA lacks
+required evidence. These measurements do not establish reliable packing gains.
+\end{abstract}
+
+\section{Problem and motivation}
+A value such as ``15'' is difficult to interpret without its year, row label,
+unit, and sometimes an ancestor header. A linked passage may be relevant only
+through the table cell that introduced it. Conversational questions can refer
+to earlier answers, while hypothetical questions change the facts being used.
+Flattening evidence can weaken these relationships even when the correct
+number is present. We ask: with the same model and evidence budget, does
+preserving dependencies between evidence and its headers, units, hierarchy,
+and links improve answer quality compared with ordinary evidence packing?
+We do not assume improvements on every dataset. The intervention may consume
+space needed for other facts, and incorrect inferred headers can hurt.
+
+\section{Related work}
+FinQA introduces program-based numerical reasoning over financial reports
+\citep{finqa}. TAT-QA combines table and paragraph evidence with multiple answer
+types \citep{tatqa}. ConvFinQA requires sequential numerical reasoning over
+conversation turns \citep{convfinqa}. HybridQA tests multi-hop reasoning over
+Wikipedia tables and linked passages \citep{hybridqa}; it is a transfer test,
+not a finance-only benchmark. Learning to Imagine introduces hypothetical
+reasoning over financial evidence \citep{tathqa}, and MultiHiertt combines
+hierarchical tables and text with span/program reasoning \citep{multihiertt}.
+Program of Thoughts delegates computation to an external interpreter \citep{pot}.
+TAT-LLM uses an extractor--reasoner--executor pipeline \citep{tatllm}. These are
+established approaches. Our contribution is a controlled engineering study of
+deterministic dependency closure at a fixed evidence budget, not a claim that
+retrieval, structured evidence, or executable reasoning is new.
+FINDER combines generative retrieval with dynamically selected in-context
+examples \citep{finder}. FinCARDS uses finance-aware schema alignment and
+tournament reranking to select evidence with audit traces \citep{fincards}.
+These close approaches limit our novelty claim. We instead use deterministic
+lexical ranking and recursive closure of actual header, unit, hierarchy and
+link dependencies, with one model call and the same model/evidence cap across
+methods. Any benefit must survive the neighboring-context length control. The project
+source ledger records further related work and its verified primary links.
+
+\section{Datasets and scope}
+All runs use the supplied document context, rather than searching a global
+corpus. Official splits remain separate. Readers preserve raw strings, stable
+identifiers, cell coordinates, original tables, paragraph offsets, and available
+links. TAT-HQA uses its hypothetical subset; label-derived intervention fields
+and related factual answers are excluded. ConvFinQA exposes only questions
+through the current turn and our earlier predicted state. MultiHiertt preserves
+HTML and merged-cell geometry and regenerates context from the HTML rather
+than trusting descriptions of unverified provenance.
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lll}
+Dataset & Local inputs & Main challenge\\\hline
+FinQA & Available & Arithmetic programs\\
+TAT-QA & Available & Spans, arithmetic, scale\\
+ConvFinQA & Available ZIP & Predicted turn history\\
+HybridQA & Corpus missing & Cell-to-passage links\\
+TAT-HQA & Available & Hypothetical changes\\
+MultiHiertt & Available & HTML hierarchy\\
+\end{tabular}
+\caption{Input readiness. Available inputs do not imply live model validation.}
+\end{table}
+TAT-QA's released test-gold version has different IDs from its original public
+test. The former is evaluated using its own inputs and identifiers; position
+joins are forbidden. TAT-HQA's hidden test filename contains ``dev'', but is
+still treated as hidden test. FinQA and ConvFinQA share source documents;
+TAT-QA and TAT-HQA also overlap. We therefore retain per-dataset results and do
+not interpret these as six independent replications. Exact input fingerprints,
+source IDs, question--table hashes, and approximate near-duplicate checks are
+prepared without consulting answers.
+
+\section{Shared architecture}
+\begin{figure}[t]
+\centering
+\fbox{\parbox{.90\columnwidth}{Prediction-only readers $\rightarrow$ lexical retrieval
+$\rightarrow$ evidence packing $\rightarrow$ frozen model $\rightarrow$ validated
+answer plan $\rightarrow$ restricted execution $\rightarrow$ output adapter.
+References join only at the official evaluation stage. Earlier predicted state
+feeds the next conversation turn.}}
+\caption{One reasoning architecture with dataset-specific I/O and evaluation.}
+\end{figure}
+The common evidence record stores raw text, provenance, dependency IDs,
+unit/scale metadata, and uncertainty about inferred structure. The final model
+request uses a field allowlist. Answers, gold evidence, derivations, reference
+programs, and future turns never enter retrieval or prompts.
+
+\subsection{Retrieval and packing}
+BM25 lexical retrieval ranks cells and paragraphs using the current question,
+available earlier questions, and immediate dependency text. Ties use stable
+IDs. Both primary methods receive readable headers. Ordinary packing inlines
+immediate labels. Dependency-preserving packing recursively closes header,
+unit, ancestor, and link-anchor dependencies and deduplicates shared nodes.
+Candidates are visited in ranked order; a complete bundle is accepted only if
+its serialized evidence fits. Dependency cycles fail validation. Whole facts are
+admitted or dropped; strings are not cut.
+The length-matched control visits a ranked seed and then its immediate source
+neighbors, targeting the dependency method's actual serialized length. It uses
+no graph closure. Whole-fact admission can underfill the target, so we record
+the residual gap. It can produce a different fact mix, and is an imperfect
+control for length alone. Identical candidate order, counting rules, prompt,
+model, and decoding settings are frozen before scoring.
+
+\subsection{Answer tools and provenance}
+The shared plan supports extraction, multiple spans, counting distinct spans,
+arithmetic, aggregates, comparison, selection, and temporary hypothetical
+changes grounded in the question. Decimal arithmetic is bounded in magnitude,
+step count and exponent. Arbitrary generated code is never executed. Operands
+must refer to selected evidence, question spans, allowed constants, earlier
+steps, or selected earlier predictions. Known incompatible units are rejected;
+unknown units remain an explicit limitation. Predicted conversational programs
+are expanded locally into cumulative operations without reference intermediates.
+Complete selected table rows also export through the official table-aggregate
+operators; partial rows are rejected. Some valid local answer modes lack an official
+FinQA program representation;
+these are recorded as unsupported exports and retained as failures, without
+fabricating identity operations. Direct-answer diagnostics have no official
+program metric and use an explicitly auxiliary numeric score where necessary.
+
+\subsection{Execution infrastructure}
+Existing Gemini and OpenAI adapters share a durable SQLite ledger. Runs require
+an explicit zero-spend gate and never switch providers automatically. Requests
+record exact provider/model identity, settings, raw and parsed responses, token
+usage, latency and status. Dispatch is committed before a network call. Completed
+responses are reused, including invalid predictions. Ambiguous timeouts and quota
+failures stop for review; transient server retries are bounded. Model drift stops
+paired scoring. Mock and live outputs use separate directories and labels.
+An earlier hosted-provider attempt stopped at token counting with HTTP 404;
+that diagnostic is separate from the local Ollama results reported here.
+The bounded local runs initially failed preflight because the required local
+server URL was absent from the launch environment. Restoring the recorded URL
+resolved that blocker without changing the model or inference contract.
+
+\section{Experimental protocol}
+The frozen smoke contains three predeclared FinQA development questions. A separate
+20-question pilot excludes those IDs and compares all three packers with the same
+local model and a 3000-byte conservative evidence cap. Configurations also prepare per-dataset subsets
+and full splits. Conversations are sampled and evaluated as complete ordered groups,
+so their turn count need not equal 20. Training fixtures are engineering examples;
+final test inputs are separate from prompt development.
+The main outcome is official execution accuracy for FinQA/ConvFinQA and official
+F1 for the remaining datasets, with companion metrics. Missing predictions, invalid
+outputs, abstentions, unsupported exports and API failures stay in the denominator.
+Official metric functions run in isolated processes. Wrappers bypass the TAT-HQA
+CLI's undefined counter and retain metric logic; they preserve raw official-function
+scores and separately force failed outputs to zero. Numeric zero is serialized as
+text for TAT scoring. MultiHiertt's invalid-program flag bug is documented rather
+than used to obtain credit.
+Paired bootstrap intervals resample documents/conversations with a fixed seed.
+The confirmatory contrast is dependency versus ordinary packing. Neighbor expansion,
+direct answers, and component removals are diagnostic. Cross-dataset confidence
+claims must respect shared sources; no naive independent-dataset pooled interval is
+produced. A small pilot cannot establish broad superiority.
+
+\section{Big Data preparation}
+The Spark workload prepares partitioned Parquet tables for documents, questions,
+and facts, joins questions to documents, explodes dependency edges, checks unresolved
+links, and computes exact content overlap. A Python reference computes equivalent
+canonical results. Repeated source contexts are deduplicated, not counted as new
+questions. Commands prepare 100, 1,000, and full-source sizes using real records;
+actual counts must be reported. Measurements include wall time, sampled process-tree
+RSS, output size, and Spark event logs for spill/task analysis. Local Spark on one
+laptop is not a distributed-cluster scalability result. A verified local[1]
+Spark 4.2.0 run matched the Python reference: 25 joined questions, 5733 dependency
+edges, zero unresolved edges; Spark wall time was 8.129 seconds. The sampled
+process-tree peak RSS was 835276800 bytes (0.1-second sampling; shared pages may
+be counted twice). This is a small correctness check, not a scale or speedup result.
+The development overlap audit found 218 shared unique table/content keys between
+ConvFinQA and FinQA, and 273 between TAT-HQA and TAT-QA; labels were not used.
+
+\input{generated/bounded_results.tex}
+
+Local Ollama generation used qwen2.5:7b-instruct, Q4\_K\_M, digest
+\texttt{845dbda0ea48ed74} (full digest in frozen metadata), an 8192-token context,
+2048 reserved output tokens, temperature zero, top-p one, seed 2626, and a
+3000-byte conservative evidence cap. Prompt, schema and generation settings
+are unchanged for the bounded evaluation. Two independent dataset workers use
+separate exclusive-lock SQLite ledgers; each conversation and method history
+remains sequential and prediction-only. New dispatch stops after 3.5 hours,
+leaving at least one hour of the five-hour budget for scoring and delivery.
+Inflight requests are preserved and never automatically retried. Official scorer
+hashes and failure details accompany the measurements.
+
+\input{generated/output_audit.tex}
+
+\input{generated/revised_results.tex}
+\IfFileExists{generated/grounded_recovery.tex}{\input{generated/grounded_recovery.tex}}{}
+
+\section{Reproducibility}
+The project includes configuration-driven freeze, preparation, mock, live, evaluation,
+overlap, resource-measurement and aggregation commands. Frozen files contain IDs,
+seeds, source hashes, input hashes, prompts, schemas, decoding settings and code hashes.
+Changed code or data requires a new versioned freeze. Provider metadata and resolved
+models are pinned across resumes. Evaluator sources and dependencies are hashed.
+The environment snapshot and exact ordinary-WSL sequence are saved with the project.
+Credentials are excluded from delivery artifacts and model inputs. The original
+implementation and supplied LaTeX files are preserved; this report copies the lowercase
+style filename for case-sensitive compilation.
+
+\section{Limitations}
+Most saved model outputs are invalid or abstentions. The HybridQA linked evidence corpus is
+missing. All MultiHiertt splits now have real-input validation; its unused cached
+descriptions contain 61 coordinates without matching HTML cells, which remain
+disclosed rather than repaired with invented values. Hosted-model
+pretraining contamination cannot be audited. Lexical retrieval can miss paraphrases;
+header/unit inference is conservative and sometimes wrong. Unknown units do not prove
+semantic compatibility. Whole-fact packing may waste budget, provider counts include
+different framing, and context matching is approximate. Development subsets are small and cannot establish full benchmark performance.
+Hidden-test scoring availability remains unverified; only development results are reported.
+No training, distributed cluster, six-dataset validation, or novel reasoning architecture is claimed.
+The restricted arithmetic ablation cannot represent general multi-step calculations. Its effects combine instruction, schema and supported-plan restrictions; they do not isolate a single causal component. Local execution does not guarantee official exportability or answer correctness.
+
+\bibliography{references}
+\bibliographystyle{acl_natbib}
+\end{document}

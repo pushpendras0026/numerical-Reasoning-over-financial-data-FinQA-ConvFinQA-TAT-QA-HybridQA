@@ -1,0 +1,22 @@
+api.txt
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+cache.sqlite*
+requirements-local.txt
+
+# Private configuration and credentials
+.env
+.env.*
+api.txt
+*.pem
+*.key
+
+# Local environments and generated files
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+artifacts/
