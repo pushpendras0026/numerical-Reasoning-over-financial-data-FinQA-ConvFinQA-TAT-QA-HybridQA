@@ -1,0 +1,346 @@
+{
+ "visa": {
+  "id": "V/2008/page_17.pdf-1",
+  "question": "what is the average payment volume per transaction for american express?",
+  "table": [
+   [
+    "company",
+    "payments volume ( billions )",
+    "total volume ( billions )",
+    "total transactions ( billions )",
+    "cards ( millions )"
+   ],
+   [
+    "visa inc. ( 1 )",
+    "$ 2457",
+    "$ 3822",
+    "50.3",
+    "1592"
+   ],
+   [
+    "mastercard",
+    "1697",
+    "2276",
+    "27.0",
+    "916"
+   ],
+   [
+    "american express",
+    "637",
+    "647",
+    "5.0",
+    "86"
+   ],
+   [
+    "discover",
+    "102",
+    "119",
+    "1.6",
+    "57"
+   ],
+   [
+    "jcb",
+    "55",
+    "61",
+    "0.6",
+    "58"
+   ],
+   [
+    "diners club",
+    "29",
+    "30",
+    "0.2",
+    "7"
+   ]
+  ],
+  "top_cells": [
+   "637",
+   "647"
+  ],
+  "row_rank": [
+   "637",
+   "647",
+   "86",
+   "5.0"
+  ],
+  "headers": {
+   "637": [
+    "payments volume ( billions )",
+    "american express"
+   ],
+   "647": [
+    "total volume ( billions )",
+    "american express"
+   ],
+   "5.0": [
+    "total transactions ( billions )",
+    "american express"
+   ],
+   "86": [
+    "cards ( millions )",
+    "american express"
+   ]
+  },
+  "ordinary": [
+   {
+    "value": "637",
+    "cost": 15,
+    "rendered": "c1=payments volume ( billions ) | american express | 637",
+    "parts": [
+     9,
+     5,
+     1
+    ]
+   },
+   {
+    "value": "647",
+    "cost": 14,
+    "rendered": "c2=total volume ( billions ) | american express | 647",
+    "parts": [
+     8,
+     5,
+     1
+    ]
+   },
+   {
+    "value": "5.0",
+    "cost": 16,
+    "rendered": "c3=total transactions ( billions ) | american express | 5.0",
+    "parts": [
+     10,
+     5,
+     1
+    ]
+   },
+   {
+    "value": "86",
+    "cost": 12,
+    "rendered": "c4=cards ( millions ) | american express | 86",
+    "parts": [
+     6,
+     5,
+     1
+    ]
+   }
+  ],
+  "dependency": [
+   {
+    "value": "637",
+    "parts": [
+     9,
+     6,
+     3
+    ],
+    "kinds": [
+     "column",
+     "row",
+     "value"
+    ]
+   },
+   {
+    "value": "647",
+    "parts": [
+     8,
+     3
+    ],
+    "kinds": [
+     "column",
+     "value"
+    ]
+   },
+   {
+    "value": "5.0",
+    "parts": [
+     10,
+     3
+    ],
+    "kinds": [
+     "column",
+     "value"
+    ]
+   },
+   {
+    "value": "86",
+    "parts": [
+     6,
+     2
+    ],
+    "kinds": [
+     "column",
+     "value"
+    ]
+   }
+  ],
+  "cumulative": {
+   "ordinary": [
+    15,
+    29,
+    45,
+    57
+   ],
+   "dependency": [
+    18,
+    29,
+    42,
+    50
+   ]
+  },
+  "length_matched": [
+   {
+    "raw": "payments volume ( billions ) | american express | 637",
+    "cost": 15
+   },
+   {
+    "raw": "cards ( millions ) | mastercard | 916",
+    "cost": 11
+   },
+   {
+    "raw": "total volume ( billions ) | american express | 647",
+    "cost": 14
+   }
+  ]
+ },
+ "replay": {
+  "question": "What is the ratio of inventory reserves to accrued compensation in 2018?",
+  "gold": 2.65,
+  "ordinary": {
+   "facts": [
+    {
+     "kind": "cell",
+     "raw": " | (in thousands) | 2018",
+     "cost": 8
+    },
+    {
+     "kind": "cell",
+     "raw": "March 31, | Inventory reserves | Deferred income tax assets:  | 757",
+     "cost": 19
+    },
+    {
+     "kind": "cell",
+     "raw": " | Inventory reserves | Deferred income tax assets:  | 948",
+     "cost": 16
+    },
+    {
+     "kind": "text",
+     "raw": "In fiscal years 2019 and 2018, the Company continued to maintain a full valuation allowance on deferred tax assets. The valuation allowance increased by $1.7 million in fiscal year 2019. The Company recorded an income tax expense from continuing operations of $39,000 in fiscal year 2019. In fiscal year 2018, the Company recorded an income tax benefit from continuing operations of $597,000. The fiscal year 2018 income tax benefit was due primarily from the release of the tax valuation allowance associated with previously generated alternative minimum tax (AMT) credits due to the December 22, 2017 Tax Cuts and Jobs Act Tax Reform (the \u201cTax Act\u201d).",
+     "cost": 165
+    },
+    {
+     "kind": "text",
+     "raw": "The Company has, on a tax-effected basis, approximately $0.8 million in tax credit carryforwards and $26.9 million of federal net operating loss carryforwards that are available to offset taxable income in the future. The tax credit carryforwards will begin to expire in fiscal year 2021. The federal net operating loss carryforwards begin to expire in fiscal year 2022. State tax credit carryforwards and net operating loss carryforwards, on a tax effected basis and net of federal tax benefits, are $0.1 million and $8.1 million, respectively. The remaining state tax credit carryforwards and state net operating loss carry forwards begin to expire in fiscal year 2020. In fiscal year 2019, $1.2 million of state net operating loss carryforwards expired.",
+     "cost": 190
+    }
+   ],
+   "used": 398,
+   "cap": 400,
+   "reasoning": "The evidence does not contain data for accrued compensation in 2018, making it impossible to calculate the requested ratio.",
+   "steps": [],
+   "answer": null,
+   "f1": 0.0
+  },
+  "dependency": {
+   "facts": [
+    {
+     "kind": "header",
+     "raw": "March 31,",
+     "cost": 4
+    },
+    {
+     "kind": "header",
+     "raw": "",
+     "cost": 2
+    },
+    {
+     "kind": "header",
+     "raw": "(in thousands)",
+     "cost": 5
+    },
+    {
+     "kind": "cell",
+     "raw": "2018",
+     "cost": 3
+    },
+    {
+     "kind": "header",
+     "raw": "Deferred income tax assets: ",
+     "cost": 9
+    },
+    {
+     "kind": "header",
+     "raw": "Accrued compensation",
+     "cost": 7
+    },
+    {
+     "kind": "cell",
+     "raw": "358",
+     "cost": 3
+    },
+    {
+     "kind": "header",
+     "raw": "Inventory reserves",
+     "cost": 6
+    },
+    {
+     "kind": "cell",
+     "raw": "757",
+     "cost": 3
+    },
+    {
+     "kind": "cell",
+     "raw": "948",
+     "cost": 3
+    },
+    {
+     "kind": "text",
+     "raw": "In fiscal years 2019 and 2018, the Company continued to maintain a full valuation allowance on deferred tax assets. The valuation allowance increased by $1.7 million in fiscal year 2019. The Company recorded an income tax expense from continuing operations of $39,000 in fiscal year 2019. In fiscal year 2018, the Company recorded an income tax benefit from continuing operations of $597,000. The fiscal year 2018 income tax benefit was due primarily from the release of the tax valuation allowance associated with previously generated alternative minimum tax (AMT) credits due to the December 22, 2017 Tax Cuts and Jobs Act Tax Reform (the \u201cTax Act\u201d).",
+     "cost": 165
+    },
+    {
+     "kind": "text",
+     "raw": "The Company has, on a tax-effected basis, approximately $0.8 million in tax credit carryforwards and $26.9 million of federal net operating loss carryforwards that are available to offset taxable income in the future. The tax credit carryforwards will begin to expire in fiscal year 2021. The federal net operating loss carryforwards begin to expire in fiscal year 2022. State tax credit carryforwards and net operating loss carryforwards, on a tax effected basis and net of federal tax benefits, are $0.1 million and $8.1 million, respectively. The remaining state tax credit carryforwards and state net operating loss carry forwards begin to expire in fiscal year 2020. In fiscal year 2019, $1.2 million of state net operating loss carryforwards expired.",
+     "cost": 190
+    }
+   ],
+   "used": 400,
+   "cap": 400,
+   "reasoning": "To find the ratio of inventory reserves to accrued compensation in 2018, divide the 2018 inventory reserves (948) by the 2018 accrued compensation (358).",
+   "steps": [
+    {
+     "a": "948",
+     "b": "358",
+     "op": "divide"
+    }
+   ],
+   "answer": "2.648044692737430167597765363",
+   "f1": 1.0
+  },
+  "missing_cell_ordinary_cost": 17
+ },
+ "withdrawn": {
+  "n": 40,
+  "official": {
+   "executor": 0.6375,
+   "direct": 0.41675000000000006
+  },
+  "relaxed_numeric": {
+   "executor": 0.6875,
+   "direct": 0.625
+  },
+  "gained": {
+   "executor": 2,
+   "direct": 9
+  },
+  "relaxed_diff": 0.0625,
+  "relaxed_ci": [
+   -0.0625,
+   0.2
+  ]
+ },
+ "hybridqa_dots": {
+  "n": 3466,
+  "both": 2489,
+  "dep_only": 146,
+  "ord_only": 7,
+  "neither": 824
+ }
+}

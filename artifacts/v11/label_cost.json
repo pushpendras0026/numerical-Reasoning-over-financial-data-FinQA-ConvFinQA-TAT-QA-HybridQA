@@ -1,0 +1,50 @@
+{
+ "finqa": {
+  "documents": 883,
+  "cells": 12771,
+  "cell_ordinary_mean": 15.131782945736434,
+  "cell_bare_mean": 3.5618197478662594,
+  "doc_dependency_median": 1041,
+  "doc_ordinary_median": 1112
+ },
+ "tatqa": {
+  "documents": 278,
+  "cells": 6402,
+  "cell_ordinary_mean": 15.311308965948141,
+  "cell_bare_mean": 3.2358637925648237,
+  "doc_dependency_median": 395.5,
+  "doc_ordinary_median": 591.5
+ },
+ "tathqa": {
+  "documents": 274,
+  "cells": 6324,
+  "cell_ordinary_mean": 15.255692599620494,
+  "cell_bare_mean": 3.2357685009487667,
+  "doc_dependency_median": 395.5,
+  "doc_ordinary_median": 591.5
+ },
+ "convfinqa": {
+  "documents": 421,
+  "cells": 6336,
+  "cell_ordinary_mean": 15.287405303030303,
+  "cell_bare_mean": 3.6882891414141414,
+  "doc_dependency_median": 979,
+  "doc_ordinary_median": 1062
+ },
+ "hybridqa": {
+  "documents": 3053,
+  "cells": 170179,
+  "cell_ordinary_mean": 15.593122535683015,
+  "cell_bare_mean": 6.975790197380405,
+  "doc_dependency_median": 8928,
+  "doc_ordinary_median": 11142
+ },
+ "multihiertt": {
+  "documents": 1044,
+  "cells": 177108,
+  "cell_ordinary_mean": 24.723451227499606,
+  "cell_bare_mean": 2.9635533121033495,
+  "doc_dependency_median": 3693.0,
+  "doc_ordinary_median": 6435.0
+ }
+}
