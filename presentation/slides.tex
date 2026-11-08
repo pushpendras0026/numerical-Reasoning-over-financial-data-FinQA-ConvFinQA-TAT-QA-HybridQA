@@ -2,16 +2,18 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,calc,matrix}
 \usepackage{booktabs}
-\graphicspath{{../report/generated/}}
+\usepackage{array}
+\graphicspath{{../report/generated/}{../report/figures/}}
 
-% Palette shared with the report figures.
 \definecolor{ink}{HTML}{1F2328}
 \definecolor{muted}{HTML}{5E6168}
 \definecolor{ordblue}{HTML}{2A78D6}
 \definecolor{deporange}{HTML}{EB6834}
 \definecolor{lenaqua}{HTML}{1BAF7A}
+\definecolor{focus}{HTML}{E3A600}
 \definecolor{paper}{HTML}{FCFCFB}
 \definecolor{rule}{HTML}{E4E3DF}
+\definecolor{colhead}{HTML}{C9CCD1}
 
 \setbeamercolor{background canvas}{bg=paper}
 \setbeamercolor{normal text}{fg=ink}
@@ -22,21 +24,20 @@
 \setbeamerfont{frametitle}{size=\Large,series=\bfseries}
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{itemize item}{\small$\blacktriangleright$}
+\setbeamertemplate{frametitle}{\vspace{.5em}\insertframetitle\par\vspace{-.2em}{\color{deporange}\rule{2.2em}{1.5pt}}}
 \setbeamertemplate{footline}{%
-  \hspace{1em}\textcolor{muted}{\scriptsize\insertshortauthor\hfill\insertframenumber/\inserttotalframenumber}\hspace{1em}\vspace{.6em}}
+  \hspace{1em}\textcolor{muted}{\scriptsize Dependency-Preserving Evidence Packing\hfill\insertsection\hfill\insertframenumber/\inserttotalframenumber}\hspace{1em}\vspace{.6em}}
 
-\newcommand{\speaker}[1]{\par\vspace{-1.2em}\hfill\textcolor{muted}{\scriptsize Speaker: #1}\par\vspace{.2em}}
 \newcommand{\pos}[1]{\textcolor{deporange}{\textbf{#1}}}
-
-\title{Dependency-Preserving Evidence Packing\\for Numerical Question Answering}
-\author[Pushpendra Singh \& Badri Bishal Das]{Pushpendra Singh \and Badri Bishal Das}
-\date{Big Data course project}
+\newcommand{\keybox}[1]{\par\begin{center}\setlength{\fboxsep}{8pt}\colorbox{rule!70}{\parbox{.95\textwidth}{\centering #1}}\end{center}\par}
 
 \tikzset{
   box/.style={draw=muted,rounded corners=3pt,fill=white,align=center,font=\footnotesize,minimum height=8mm,inner xsep=4pt},
   hot/.style={box,draw=deporange,line width=1pt},
   arrow/.style={-{Stealth[length=2.2mm]},muted,thick},
-  cell/.style={draw=rule,minimum height=5.5mm,font=\scriptsize,inner xsep=3pt},
+  cell/.style={draw=rule,minimum height=5.5mm,font=\scriptsize,inner xsep=3pt,fill=white},
+  fact/.style={draw=ink,rounded corners=2pt,fill=white,font=\scriptsize\ttfamily,inner sep=3pt},
+  label/.style={draw=muted,rounded corners=2pt,fill=colhead!50,font=\scriptsize,inner sep=3pt},
 }
 
 \begin{document}
@@ -44,265 +45,360 @@
 % 1 ---------------------------------------------------------------
 \begin{frame}[plain]
 \vfill
-{\usebeamerfont{title}\Large\bfseries \inserttitle\par}
-\vspace{1em}
+{\Large\bfseries Dependency-Preserving Evidence Packing\\for Numerical Question Answering over Financial Reports\par}
+\vspace{1.2em}
 {\large Pushpendra Singh \quad Badri Bishal Das\par}
-\vspace{.4em}
-{\textcolor{muted}{Big Data course project \textbullet{} FinQA, ConvFinQA, TAT-QA, HybridQA, TAT-HQA, MultiHiertt}\par}
+\vspace{.3em}
+{\color{muted}Indian Institute of Technology Guwahati \textbullet{} Big Data course project\par}
 \vfill
-\note{Speaker A opens. One sentence: when a model can only read part of a document,
-does keeping each number's labels with it help? Introduce both speakers and the split.}
+{\footnotesize\color{muted}Six table--text QA datasets \quad|\quad PySpark \quad|\quad Gemini 3.5 Flash-Lite\par}
 \end{frame}
 
+\section{Problem}
 % 2 ---------------------------------------------------------------
-\begin{frame}{A number means nothing without its labels}
-\speaker{A}
-\begin{columns}[T]
-\column{.56\textwidth}
-\begin{tikzpicture}[node distance=0pt]
-\matrix (t) [matrix of nodes, ampersand replacement=\&, nodes={cell}, column sep=-\pgflinewidth, row sep=-\pgflinewidth,
-  column 1/.style={nodes={text width=24mm}}, column 2/.style={nodes={text width=13mm,align=right}},
-  column 3/.style={nodes={text width=15mm,align=right}}]{
-  company \& payments vol.\ (bn) \& transactions (bn)\\
-  visa inc. \& \$ 2457 \& 50.3\\
-  mastercard \& 1697 \& 27.0\\
-  american express \& |[fill=deporange!18]| 637 \& |[fill=deporange!18]| 5.0\\
-  discover \& 102 \& 1.6\\
-};
+\begin{frame}{The task: numerical question answering over reports}
+\begin{columns}[c]
+\column{.5\textwidth}
+\begin{tikzpicture}
+\node[box,text width=24mm] (q) at (0,1.0) {question\\\scriptsize ``Amex volume per\\transaction?''};
+\node[box,text width=24mm] (r) at (0,-1.0) {annual report\\\scriptsize tables and text};
+\node[hot,text width=18mm] (p) at (2.95,0) {retrieve and\\pack evidence};
+\node[box,text width=10mm] (m) at (4.95,0) {LLM};
+\node[box,text width=13mm] (a) at (4.95,-1.35) {$637 \div 5.0$\\$= 127.4$};
+\draw[arrow] (q)--(p); \draw[arrow] (r)--(p); \draw[arrow] (p)--(m); \draw[arrow] (m)--(a);
+\node[font=\scriptsize,deporange,below=1mm of p] {fixed context window};
 \end{tikzpicture}
-\vspace{.6em}
-
-{\footnotesize\textcolor{muted}{Real FinQA development example. Gold program: \texttt{divide(637, const\_5)} $=127.4$}}
-\column{.42\textwidth}
-\textit{``What is the average payment volume per transaction for American Express?''}
-\vspace{.8em}
-\begin{itemize}\itemsep4pt
-\item The answer needs \pos{two cells} plus the \pos{row label} and \pos{two column headers}.
-\item Given ``637'' and ``5.0'' alone, the model cannot tell which is which.
-\item With a small reading budget, labels compete with facts for space.
+\column{.46\textwidth}
+\begin{itemize}\itemsep6pt
+\item An NLP task: table--text hybrid question answering, with arithmetic.
+\item The model reads only what fits in its \pos{context window}; a HybridQA document is 8,928 tokens at the median, the budget 1,500.
+\item So the system must choose which facts to pack, and \pos{how to write them}.
 \end{itemize}
 \end{columns}
-\note{Point at the highlighted cells. The question is what to keep when you cannot
-keep everything: the facts, or the facts together with what makes them readable.}
 \end{frame}
 
 % 3 ---------------------------------------------------------------
-\begin{frame}{Research question and data}
-\speaker{A}
-\begin{block}{Question}
-With the \pos{same model} and the \pos{same evidence budget}, does keeping each fact's
-headers, units, hierarchy and links with it improve answers over ordinary packing?
-\end{block}
-\vspace{.4em}
+\begin{frame}{The problem: a number means nothing without its labels}
 \begin{columns}[T]
-\column{.5\textwidth}
-\footnotesize
-\begin{tabular}{@{}llr@{}}
-\toprule
-& Dataset & Dev questions\\\midrule
-Assigned & FinQA & 883\\
-& ConvFinQA & 1,490 turns\\
-& TAT-QA & 1,668\\
-& HybridQA & 3,466\\
-Added & TAT-HQA & 824\\
-& MultiHiertt & 1,044\\\bottomrule
-\end{tabular}
-\column{.46\textwidth}
-\begin{itemize}\itemsep3pt\footnotesize
-\item One shared pipeline; only readers and scorers differ per dataset.
-\item Official evaluators, run unchanged at pinned versions.
-\item Related datasets share documents, so results are \pos{never pooled}.
-\item HybridQA is general knowledge: a transfer test, not finance.
-\end{itemize}
-\end{columns}
-\note{Stress the controlled comparison: model, prompt and budget fixed; only the packing
-method changes. Feeding gold answers through each official scorer gives 100\% on five datasets; MultiHiertt gives 90.5\% because its span path drops minus signs.}
-\end{frame}
-
-% 4 ---------------------------------------------------------------
-\begin{frame}{One pipeline for six datasets}
-\speaker{A}
-\centering
-\begin{tikzpicture}[node distance=3.5mm,scale=.95,transform shape]
-\node[box] (read) {Dataset\\reader};
-\node[box,right=of read] (ret) {BM25\\retrieval};
-\node[hot,right=of ret] (pack) {Evidence\\packing};
-\node[box,right=of pack] (llm) {Gemini\\(one call)};
-\node[box,right=of llm] (ground) {Literal\\grounding};
-\node[box,right=of ground] (exec) {Decimal\\executor};
-\node[box,right=of exec] (score) {Official\\scorer};
-\foreach \a/\b in {read/ret,ret/pack,pack/llm,llm/ground,ground/exec,exec/score}\draw[arrow] (\a)--(\b);
-\node[box,below=6mm of read,fill=rule!40] (labels) {Gold labels\\(kept apart)};
-\draw[arrow,dashed] (labels.east) -| (score.south);
-\node[font=\scriptsize,muted,above=1mm of pack] {the experiment};
-\draw[arrow] (exec.north) to[out=135,in=45] node[above,font=\scriptsize,muted]{earlier answers (ConvFinQA)} (ret.north);
-\end{tikzpicture}
-\vspace{.3em}
-\begin{columns}[T]
-\column{.48\textwidth}
-\footnotesize
-\begin{itemize}\itemsep3pt
-\item Each fact stores its text and the IDs of the facts needed to read it.
-\item Labels never reach the prompt: 0 of 443 inspected prompts contained one.
-\end{itemize}
-\column{.48\textwidth}
-\footnotesize
-\begin{itemize}\itemsep3pt
-\item Every raw response is saved, so runs resume and re-score without new calls.
-\item Spark builds the deduplicated fact store, checked against Python.
-\end{itemize}
-\end{columns}
-\note{Walk left to right once. Only the orange box changes between methods.}
-\end{frame}
-
-% 5 ---------------------------------------------------------------
-\begin{frame}{Three ways to pack the same budget}
-\speaker{A}
-\begin{columns}[T]
-\column{.33\textwidth}
-\textcolor{ordblue}{\textbf{Ordinary (O)}}\par\vspace{.3em}
-{\scriptsize\ttfamily amex | payments | 637\\amex | txns | 5.0\par}
-\vspace{.3em}{\footnotesize Labels repeated inline per cell. A fair baseline, not a weakened one.}
-\column{.33\textwidth}
-\textcolor{deporange}{\textbf{Dependency (D)}}\par\vspace{.3em}
-{\scriptsize\ttfamily company | payments | txns\\amex | 637 | 5.0\par}
-\vspace{.3em}{\footnotesize Recursive closure of headers, units, hierarchy and links, stored once.}
-\column{.33\textwidth}
-\textcolor{lenaqua}{\textbf{Length-matched (L)}}\par\vspace{.3em}
-{\scriptsize\ttfamily 637 \ 5.0 \ 102 \ 1.6\par}
-\vspace{.3em}{\footnotesize Neighbouring facts up to D's length. Tests whether \emph{more text} is enough.}
-\end{columns}
-\vspace{1em}
-\begin{block}{Literal grounding: the model copies values, code finds them}
-\footnotesize The model writes \texttt{divide("637", "5.0")}. We locate each value in the packed
-evidence or the question; a value found nowhere rejects the answer. The earlier design asked for
-character offsets and reached \pos{2 of 883} FinQA questions. That run also used a different model,
-so we do not credit the format alone.
-\end{block}
-\note{This is the key mechanism slide. Hand over to speaker B after it.}
-\end{frame}
-
-% 6 ---------------------------------------------------------------
-\begin{frame}{A fair experiment on a free-tier budget}
-\speaker{B}
-\begin{columns}[T]
-\column{.5\textwidth}
-\textbf{Budget must actually bind}
-\begin{itemize}\itemsep3pt\footnotesize
-\item At 4,000 tokens, four datasets were not truncated in a 40-question sample: methods would differ only in layout.
-\item Caps chosen from document sizes, without labels: 400--1,500 tokens.
-\end{itemize}
-\vspace{.5em}
-\textbf{Three measurements}
-\begin{itemize}\itemsep3pt\footnotesize
-\item \pos{Coverage}: does gold evidence survive packing? All 9,268 questions, no model.
-\item \pos{Block A}: O vs D vs L answers, \texttt{gemini-3.5-flash-lite}.
-\item \pos{Block B}: executor vs direct answering, \texttt{gemini-3.1-flash-lite}.
-\end{itemize}
-\column{.46\textwidth}
-\textbf{Rules}
-\begin{itemize}\itemsep3pt\footnotesize
-\item One model per comparison; models are never compared with each other.
-\item Samples fixed by seed before any call; conversations kept whole.
-\item Failures stay in the denominator as zero.
-\item Paired bootstrap over whole documents, 2,000 resamples.
-\item 500 requests per day per model: runs stop and resume from saved answers.
-\end{itemize}
-\end{columns}
-\note{The cap choice is the most important design fix: an unbinding budget makes the
-comparison meaningless.}
-\end{frame}
-
-% 7 ---------------------------------------------------------------
-\begin{frame}{Result 1: dependency packing keeps more gold evidence}
-\speaker{B}
-\centering
-\includegraphics[width=.74\textwidth]{coverage_wide.pdf}\par
-\vspace{.2em}
-{\footnotesize Exact counts over every scorable development question. Questions kept only by D vs only by O at the chosen cap:
-HybridQA \pos{146 vs 7}, MultiHiertt \pos{42 vs 3}, TAT-QA 41 vs 15, TAT-HQA 33 vs 12, FinQA 9 vs 1, ConvFinQA 6 vs 1.
-At 200 tokens the closure overhead costs coverage on ConvFinQA and MultiHiertt.}
-\note{Two observations. D is above O on all six datasets at the chosen caps, most where documents are
-large. The gap closes as budgets grow, which is exactly what the hypothesis predicts.
-L is lowest: more nearby text is not the same as the right labels.
-At 200 tokens the closure overhead costs coverage on ConvFinQA and MultiHiertt: a measured limit.}
-\end{frame}
-
-% 8 ---------------------------------------------------------------
-\begin{frame}{Result 2: effect on answers}
-\speaker{B}
-\begin{columns}[T]
-\column{.5\textwidth}
-\textbf{Block A: packing (\%)}\par\vspace{.3em}
-\scriptsize\setlength{\tabcolsep}{2.5pt}
-\resizebox{\linewidth}{!}{\input{../report/generated/block_a.tex}}
-\column{.48\textwidth}
-\textbf{Block B: executor vs direct (\%)}\par\vspace{.3em}
-\scriptsize\setlength{\tabcolsep}{2.5pt}
-\resizebox{\linewidth}{!}{\input{../report/generated/block_b.tex}}
-\end{columns}
+\column{.55\textwidth}
+\begin{tikzpicture}
+\matrix (t) [matrix of nodes, ampersand replacement=\&, nodes={cell}, column sep=-\pgflinewidth, row sep=-\pgflinewidth,
+  column 1/.style={nodes={text width=22mm}}, column 2/.style={nodes={text width=12mm,align=right}},
+  column 3/.style={nodes={text width=11mm,align=right}}, column 4/.style={nodes={text width=14mm,align=right}},
+  column 5/.style={nodes={text width=9mm,align=right}}]{
+  company \& paym.\ vol.\ (bn) \& total vol.\ (bn) \& transactions (bn) \& cards (mn)\\
+  mastercard \& 1697 \& 2276 \& 27.0 \& 916\\
+  american express \& |[fill=focus!35]| 637 \& |[fill=focus!35]| 647 \& 5.0 \& 86\\
+  discover \& 102 \& 119 \& 1.6 \& 57\\
+};
+\end{tikzpicture}\par\vspace{.3em}
+{\scriptsize\color{muted}FinQA development set, V/2008/page\_17 (Visa annual report).}
+\column{.42\textwidth}
+\small The retriever's top two cells are \textbf{637} and \textbf{647}. Only the column headers separate them.
 \vspace{.6em}
-\footnotesize
-\begin{itemize}\itemsep2pt
-\item Packing: D $\geq$ O on all six datasets; the interval excludes zero only on \pos{TAT-QA (+11.3)}.
-\item Intervals are wide at these sample sizes; six comparisons per block are uncorrected.
-\item Only robust Block B gap: \pos{direct answering wins on HybridQA}, which has short text answers and no arithmetic.
-\item MultiHiertt's Block B row is official F1; under one scoring rule for both sides the gap is +6.2 (next slide).
-\end{itemize}
-\note{Read the D minus O column and its intervals. Do not over-claim: say what the intervals allow.}
-\end{frame}
-
-% 9 ---------------------------------------------------------------
-\begin{frame}{What failed, and what we learned}
-\speaker{B}
-\begin{columns}[T]
-\column{.5\textwidth}
-\textbf{A result we withdrew}
-\begin{itemize}\itemsep3pt\footnotesize
-\item MultiHiertt first showed the executor \pos{+22.1} points ahead.
-\item Direct answers wrote $-29.92$ for a gold $-0.2992$; the official span path marks that wrong.
-\item Same scoring rule for both sides: \pos{+6.2}, interval [$-6.2$, $+20.0$]. No claim.
-\end{itemize}
-\vspace{.4em}
-\textbf{Where answers still go wrong}
-\begin{itemize}\itemsep3pt\footnotesize
-\item Numbers: wrong values, reversed percentage-change direction.
-\item Text: over-long or wrong spans (HybridQA, TAT-QA).
-\item Validation failures are now rare.
-\end{itemize}
-\column{.46\textwidth}
-\footnotesize\setlength{\tabcolsep}{2pt}
-\textbf{Uncredited executor answers, Block B}\par\vspace{.3em}
-\scriptsize\input{../report/generated/errors.tex}
-\end{columns}
-\note{This slide shows the checks we ran on our own results. Withdrawing the MultiHiertt
-claim is a strength of the project, not a weakness.}
-\end{frame}
-
-% 10 --------------------------------------------------------------
-\begin{frame}{Big Data, and conclusions}
-\speaker{B}
-\begin{columns}[T]
-\column{.5\textwidth}
-\textbf{Spark preparation}
-\begin{itemize}\itemsep3pt\footnotesize
-\item Partitioned Parquet store: 1.36 M facts, 1.88 M dependency edges, 0 unresolved.
-\item Finds 491 identical-content document pairs across datasets.
-\item Every run must equal the Python reference.
-\item Honest timing: Python takes 15.8\,s; Spark 37.0\,s at best (4 cores). At 1.4 M rows, Spark's value is the checked store, not speed.
-\end{itemize}
-\column{.46\textwidth}
-\textbf{Conclusions}
-\begin{itemize}\itemsep3pt\footnotesize
-\item Keeping labels with facts preserves more needed evidence, most when documents far exceed the budget.
-\item Answers move the same way on all six datasets, but only TAT-QA's gain is clear at $n=50$.
-\item Copy-and-resolve answers replaced a pipeline that almost always failed validation (the model also changed).
-\item An executor gives auditability, not a guaranteed accuracy gain.
+\begin{itemize}\itemsep4pt\footnotesize
+\item \textbf{Drop labels}: cheap, but numbers become ambiguous.
+\item \textbf{Repeat labels per cell}: readable, but a cell costs \pos{4--8$\times$} more tokens (15 vs 3.6 on FinQA, 24.7 vs 3.0 on MultiHiertt); needed numbers fall out of the window.
 \end{itemize}
 \end{columns}
 \vspace{.8em}
-{\footnotesize\textcolor{muted}{Limitations: small samples, inferred headers, estimated token counts, hosted models that can change.}}
-\note{End on the one-line takeaway, then invite questions.}
+\keybox{\small We need packing that keeps every number's labels and still fits the context window.}
+\end{frame}
+
+% 4 ---------------------------------------------------------------
+\begin{frame}{Prior approach: serialize tables with labels in every sentence}
+\centering
+\includegraphics[width=.86\textwidth]{reference_pipeline.png}\par
+{\scriptsize\color{muted}Pipeline of Arun et al., \emph{Numerical Reasoning for Financial Reports}, arXiv:2312.14870 (2023), their Fig.~4.}
+\vspace{.6em}
+\begin{columns}[T]
+\column{.48\textwidth}\footnotesize
+\begin{itemize}\itemsep3pt
+\item Tables become sentences: ``the revenue of 2019 is 100''.
+\item FAISS keeps one chunk; a fine-tuned T5 / Llama-2 answers.
+\end{itemize}
+\column{.48\textwidth}\footnotesize
+\begin{itemize}\itemsep3pt
+\item Labels survive because they are \pos{repeated with every number}: the cost our method removes.
+\item Their lesson we keep: let code do the arithmetic.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% 5 ---------------------------------------------------------------
+\begin{frame}{Our contribution}
+\keybox{Keep every number's labels, but \pos{write each label once} and let the numbers point to it.\\
+The same budget then holds more numbers, and every one stays readable.}
+\vspace{.5em}
+\begin{columns}[T]
+\column{.5\textwidth}\small
+\begin{enumerate}\itemsep4pt
+\item \textbf{Dependency-preserving packing}, with its exact token trade-off.
+\item \textbf{A PySpark data layer}: one verified graph of 1.36 M facts and 1.88 M label links.
+\end{enumerate}
+\column{.46\textwidth}\small
+\begin{enumerate}\setcounter{enumi}{2}\itemsep4pt
+\item \textbf{A coverage audit} on all 9,268 dev questions, no model.
+\item \textbf{A paired answer test} with Gemini 3.5 Flash-Lite and grounded answers.
+\end{enumerate}
+\end{columns}
+\end{frame}
+
+% 6 ---------------------------------------------------------------
+\begin{frame}{Objectives}
+\renewcommand{\arraystretch}{1.4}\small
+\begin{tabular}{@{}p{.06\textwidth}>{\raggedright\arraybackslash}p{.55\textwidth}>{\raggedright\arraybackslash}p{.31\textwidth}@{}}
+& \textbf{Objective} & \textcolor{muted}{\textbf{Evidence}}\\\midrule
+\pos{O1} & One pipeline over the four assigned datasets plus TAT-HQA and MultiHiertt, with official scorers & gold answers through each scorer\\
+\pos{O2} & Dependency packing against label-repeating and length-matched packing at a fixed budget & coverage audit, 9,268 questions\\
+\pos{O3} & A verified PySpark preparation of all six datasets & equality with a Python reference\\
+\pos{O4} & A paired answer test with one model & Block A, 50 questions per dataset\\
+\pos{O5} & Answers grounded in the evidence & Block B, executor vs direct\\
+\end{tabular}
+\end{frame}
+
+% 7 ---------------------------------------------------------------
+\begin{frame}{Datasets}
+\footnotesize\setlength{\tabcolsep}{5pt}\centering
+\begin{tabular}{@{}llrlrrr@{}}
+\toprule
+& Dataset & Dev questions & Challenge & \multicolumn{2}{c}{Median document (tokens)} & Budget\\
+& & & & labels once & labels per cell & \\\midrule
+Assigned & FinQA & 883 & arithmetic programs & 1,041 & 1,112 & 800\\
+& ConvFinQA & 1,490 turns & conversation history & 979 & 1,062 & 800\\
+& TAT-QA & 1,668 & spans, scale & 396 & 592 & 400\\
+& HybridQA & 3,466 & cell-to-passage links & 8,928 & 11,142 & 1,500\\
+Added & TAT-HQA & 824 & hypothetical changes & 396 & 592 & 400\\
+& MultiHiertt & 1,044 & hierarchical tables & 3,693 & 6,435 & 1,500\\\bottomrule
+\end{tabular}\par\vspace{.3em}
+{\scriptsize\color{muted}Official GitHub repositories at pinned commits: czyssrs/FinQA, czyssrs/ConvFinQA, NExTplusplus/TAT-QA, wenhuchen/HybridQA, NExTplusplus/TAT-HQA, psunlpgroup/MultiHiertt.}
+\vspace{.6em}
+\begin{itemize}\itemsep3pt\small
+\item Related datasets share documents, so results are never pooled.
+\item TAT-QA's median document fits its 400-token budget only when labels are written once.
+\end{itemize}
+\end{frame}
+
+\section{Method}
+% 8 ---------------------------------------------------------------
+\begin{frame}{Pipeline}
+\centering
+\begin{tikzpicture}[node distance=4mm]
+\node[box] (a) {PySpark\\fact graph};
+\node[box,right=of a] (b) {BM25\\ranking};
+\node[hot,right=of b] (c) {packing\\O / D / L};
+\node[box,right=of c] (d) {Gemini 3.5\\Flash-Lite};
+\node[box,right=of d] (e) {check +\\execute};
+\node[box,right=of e] (f) {official\\scorer};
+\foreach \x/\y in {a/b,b/c,c/d,d/e,e/f}\draw[arrow] (\x)--(\y);
+\node[box,below=7mm of a,fill=rule!40] (g) {gold answers};
+\draw[arrow,dashed] (g.east) -| (f.south);
+\node[font=\scriptsize,deporange,above=1mm of c] {the only step that varies};
+\end{tikzpicture}
+\vspace{1em}
+\begin{columns}[T]
+\column{.48\textwidth}\footnotesize
+\begin{itemize}\itemsep3pt
+\item Every dataset becomes \emph{facts}: text plus the IDs of the facts needed to read it.
+\item BM25 ranks cells and paragraphs; packing fills a fixed token budget.
+\end{itemize}
+\column{.48\textwidth}\footnotesize
+\begin{itemize}\itemsep3pt
+\item One model call per question; the model copies numbers into a plan.
+\item Gold answers meet predictions only at scoring: 0 of 443 prompts contained one.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% 9 ---------------------------------------------------------------
+\begin{frame}{Dependency graph and packing}
+\begin{columns}[c]
+\column{.46\textwidth}
+\centering
+\begin{tikzpicture}
+\node[fact] (a) at (0,0) {637};
+\node[fact] (b) at (1.9,0) {647};
+\node[fact] (c) at (3.8,0) {5.0};
+\node[label] (ha) at (0,1.15) {payments vol.};
+\node[label] (hb) at (1.9,1.7) {total vol.};
+\node[label] (hc) at (3.8,1.15) {transactions};
+\node[label,fill=focus!40] (row) at (1.9,-1.15) {american express};
+\foreach \x/\h in {a/ha,b/hb,c/hc}\draw[arrow] (\x)--(\h);
+\foreach \x in {a,b,c}\draw[arrow] (\x)--(row);
+\end{tikzpicture}\par\vspace{.3em}
+{\scriptsize\color{muted}Each number points to the labels it needs; the row label is one shared node.}
+\column{.52\textwidth}\footnotesize
+\begin{itemize}\itemsep3pt
+\item \textcolor{ordblue}{\textbf{Ordinary (O)}}: labels inline in every cell.
+\item \textcolor{deporange}{\textbf{Dependency (D)}}: a fact enters with its label closure; packed labels are free.
+\item \textcolor{lenaqua}{\textbf{Length-matched (L)}}: ordinary facts plus neighbours, to D's length.
+\end{itemize}
+\vspace{.4em}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lrrrr@{}}
+Amex cells packed & 1 & 2 & 3 & 4\\\midrule
+\textcolor{ordblue}{O tokens} & 15 & 29 & 45 & 57\\
+\textcolor{deporange}{D tokens} & 18 & 29 & 42 & 50\\
+\end{tabular}\par\vspace{.2em}
+{\scriptsize A fixed cost for structure, then cheaper cells: 15.1 vs 3.6 tokens per FinQA cell, 24.7 vs 3.0 in MultiHiertt.}
+\end{columns}
+\end{frame}
+
+% 10 --------------------------------------------------------------
+\begin{frame}{Big Data implementation with PySpark}
+\begin{columns}[c]
+\column{.5\textwidth}
+\centering
+\begin{tikzpicture}[node distance=2.2mm and 3mm,font=\scriptsize,
+  src/.style={draw=muted,rounded corners=1.5pt,fill=white,align=center,text width=15mm,minimum height=6mm},
+  job/.style={draw=deporange,rounded corners=1.5pt,fill=white,align=center,text width=20mm,minimum height=6mm},
+  sink/.style={draw=ink,rounded corners=1.5pt,fill=colhead!35,align=center,text width=16mm,minimum height=6mm}]
+\node[src] (s1) {6 datasets:\\JSON, zip, HTML};
+\node[src,below=of s1] (s2) {Python readers\\normalise};
+\node[src,below=of s2] (s3) {JSONL: docs,\\questions, facts};
+\node[job,right=5mm of s1] (j1) {join questions\\to documents};
+\node[job,below=of j1] (j2) {explode\\dependency arrays};
+\node[job,below=of j2] (j3) {left-anti join:\\unresolved edges};
+\node[job,below=of j3] (j4) {self-join on\\content hash};
+\node[sink,right=5mm of j2] (p) {Parquet by\\dataset/split};
+\node[sink,right=5mm of j4] (v) {equal to Python\\reference?};
+\draw[arrow] (s1)--(s2); \draw[arrow] (s2)--(s3);
+\foreach \j in {j1,j2,j3,j4}\draw[arrow] (s3.east) -- ++(1.5mm,0) |- (\j.west);
+\draw[arrow] (j1.east) -| (p.north); \draw[arrow] (j2)--(p);
+\draw[arrow] (j3.east) -| (v.north); \draw[arrow] (j4)--(v);
+\end{tikzpicture}
+\column{.48\textwidth}\footnotesize
+\begin{itemize}\itemsep3pt
+\item Spark 4.3.0, Spark SQL DataFrames, local mode, 8 shuffle partitions.
+\item Output: \pos{1,360,644 facts}, \pos{1,884,748 edges}, 0 unresolved; 4,395 deduplicated documents.
+\item Self-join finds \pos{491 identical document pairs}: why datasets are never pooled.
+\item Parquet 0.18 GB vs 0.95 GB JSON lines (5.1$\times$).
+\item Full data: Spark 37.0 s at 4 cores, Python 15.8 s. At 1.4 M in-memory rows Spark gives a verified columnar store, not speed.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% 11 --------------------------------------------------------------
+\begin{frame}{Grounded answers}
+\begin{columns}[T]
+\column{.5\textwidth}\small
+\begin{itemize}\itemsep5pt
+\item The model returns a JSON plan whose arguments are numbers \pos{copied} from the evidence: \texttt{divide("637", "5.0")}.
+\item Code finds each number in the evidence; a missing number rejects the plan.
+\item A bounded decimal interpreter computes the answer.
+\end{itemize}
+\column{.46\textwidth}\small
+\begin{itemize}\itemsep5pt
+\item Blocks invented numbers: \texttt{640} is in no cell.
+\item Cannot block a wrong real number: \texttt{647} passes and gives 129.4.
+\item That choice is only safe when the labels are in the evidence.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+\section{Experiment}
+% 12 --------------------------------------------------------------
+\begin{frame}{Experimental setup}
+\begin{columns}[T]
+\column{.42\textwidth}\footnotesize
+\textbf{Three measurements}
+\begin{itemize}\itemsep3pt
+\item \pos{Coverage audit}, no model: does every gold operand survive packing? 9,268 questions $\times$ 5 budgets $\times$ 3 methods.
+\item \pos{Block A}: O vs D vs L answers, 50 questions per dataset.
+\item \pos{Block B}: executor vs direct answering on D evidence, 40 per dataset.
+\end{itemize}
+\vspace{.3em}
+\textbf{Budgets} set from document sizes: 400, 800 or 1,500 tokens.
+\column{.56\textwidth}\scriptsize
+\textbf{Model configuration}\par\vspace{.2em}
+\setlength{\tabcolsep}{3pt}
+\resizebox{\linewidth}{!}{\begin{tabular}{@{}lll@{}}
+\toprule
+& Block A & Block B\\\midrule
+Model & Gemini 3.5 Flash-Lite & Gemini 3.1 Flash-Lite\\
+Version & 3.5-flash-lite-07-2026 & 3.1-flash-lite-05-2026\\
+Training & none, as served & none, as served\\
+Output & schema-bound JSON & schema-bound JSON\\
+Max output / thinking & 2,048 / low & 2,048 / low\\
+Responses & 885 & 472\\
+Median tokens in / out & 1,403 / 129 & 1,214 / 109\\
+\bottomrule
+\end{tabular}}\par\vspace{.3em}
+Paired bootstrap over documents, 2,000 resamples; failures score zero.
+\end{columns}
+\end{frame}
+
+\section{Results}
+% 13 --------------------------------------------------------------
+\begin{frame}{Result 1: more of the needed evidence survives}
+\centering
+\includegraphics[width=.72\textwidth]{coverage_wide.pdf}\par
+\vspace{.1em}
+{\footnotesize D above O on all six datasets at the chosen budgets. Kept only by D vs only by O: HybridQA \pos{146 vs 7}, MultiHiertt \pos{42 vs 3}, TAT-QA 41 vs 15, TAT-HQA 33 vs 12, FinQA 9 vs 1, ConvFinQA 6 vs 1. The gap closes as budgets grow; at 200 tokens it reverses on ConvFinQA and MultiHiertt.}
+\end{frame}
+
+% 14 --------------------------------------------------------------
+\begin{frame}{Result 2: answers follow the evidence}
+\begin{columns}[T]
+\column{.54\textwidth}
+\textbf{\small Block A, Gemini 3.5 Flash-Lite (\%)}\par\vspace{.3em}
+\scriptsize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\linewidth}{!}{\input{../report/generated/block_a.tex}}
+\vspace{.3em}
+\footnotesize
+\begin{itemize}\itemsep2pt
+\item D $\geq$ O on all six datasets; significant on \pos{TAT-QA, +11.3} [+4.1, +19.9].
+\item Elsewhere within noise at $n = 50$.
+\end{itemize}
+\column{.42\textwidth}\footnotesize
+\textbf{A real case (TAT-QA, budget 400)}
+\begin{itemize}\itemsep3pt
+\item O uses 398 tokens on 5 facts; ``accrued compensation, 358'' needs 17 more.
+\item The model: \emph{``the evidence does not contain data for accrued compensation''}; abstains.
+\item D pays 33 tokens for labels once and 3 per cell: 358 fits; \texttt{divide(948, 358)} $= 2.65$, the gold answer.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+% 15 --------------------------------------------------------------
+\begin{frame}{Result 3: the executor}
+\begin{columns}[T]
+\column{.52\textwidth}
+\textbf{\small Block B, Gemini 3.1 Flash-Lite (\%)}\par\vspace{.3em}
+\scriptsize\setlength{\tabcolsep}{2.5pt}
+\resizebox{\linewidth}{!}{\input{../report/generated/block_b.tex}}
+\column{.44\textwidth}\footnotesize
+\begin{itemize}\itemsep4pt
+\item No consistent executor gain; direct answering leads on HybridQA (text answers, no arithmetic).
+\item MultiHiertt's +22.1 is a scoring artefact: $-29.92$ written for a gold $-0.2992$.
+\item One numeric rule for both sides: \pos{+6.2} [$-6.2$, +20.0]. Claim withdrawn.
+\item The executor's value: every answer traces to evidence.
+\end{itemize}
+\end{columns}
+\end{frame}
+
+\section{Conclusion}
+% 16 --------------------------------------------------------------
+\begin{frame}{Conclusion}
+\begin{columns}[T]
+\column{.54\textwidth}\small
+\begin{itemize}\itemsep5pt
+\item \textbf{Problem}: large tables must fit a fixed context window; numbers without labels mean nothing.
+\item \textbf{Method}: write each label once and link every number to it.
+\item \textbf{Evidence}: more of what a question needs survives on all six datasets; the gain closes as budgets grow.
+\item \textbf{Answers}: at least as good with Gemini 3.5 Flash-Lite; significant on TAT-QA.
+\item \textbf{Big Data}: PySpark builds and verifies the 1.36 M-fact graph.
+\end{itemize}
+\column{.42\textwidth}\small
+\textbf{Future work}
+\begin{itemize}\itemsep4pt\footnotesize
+\item Larger answer samples to narrow the intervals.
+\item Budget-aware closure: pay for a header only when several packed facts share it.
+\item Better header inference for nested tables.
+\end{itemize}
+\vspace{.6em}
+{\scriptsize\color{muted}Limits: small answer samples, inferred headers, estimated token counts, hosted models.}
+\end{columns}
 \end{frame}
 
 \end{document}

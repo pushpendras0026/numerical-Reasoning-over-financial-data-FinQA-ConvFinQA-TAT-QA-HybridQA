@@ -1,48 +1,67 @@
-# Presentation script (15 minutes)
+# Presentation script
 
-Part 1 is the video (`video/explainer.mp4`, 4:01), narrated live by one speaker.
-Part 2 is the 10 slides (`slides.pdf`), about one minute each. Speaker A takes slides
-1 to 5 and Speaker B takes slides 6 to 10. Swap the letters for names as you prefer.
-Every number below comes from the measured results in the report.
+Sixteen slides and twelve Manim visualizations (`video/clips/`, numbered in playing
+order). Where a slide says **→ show**, stop on the slide, say "let's see how this works",
+play the visualization and narrate it from the table below. Each visualization is timed
+to its narration at about 140 words per minute. Speaker A takes slides 1 to 8 (problem
+and method), Speaker B slides 9 to 16 (implementation, experiment, results).
 
-## Part 1: video narration
+## Slide script
 
-| Scene | Starts | Say |
+**1. Title (A).** "We study how to fit large financial tables into a language model's fixed context window without losing what the numbers mean."
+
+**2. The task (A).** "This is an NLP task: answering numerical questions over financial reports. The model reads only what fits in its context window, so the system must choose which facts to pack, and how to write them." **→ show: The budget forces a choice.**
+
+**3. The problem (A).** "A number means nothing without its labels. 637 and 647 differ only by their column header. Drop labels and numbers are ambiguous; repeat them in every cell and each cell costs four to eight times more." **→ show: A number needs its labels.**
+
+**4. Prior approach (A).** "Arun and colleagues serialize tables into sentences that repeat the labels with every number, keep one chunk, and fine-tune T5 or Llama-2. Repeating labels is the cost we remove." **→ show: The reference pipeline.**
+
+**5. Our contribution (A).** Read the boxed sentence, then the four items. **→ show: Our idea: a graph of labels.**
+
+**6. Objectives (A).** "Each objective maps to the evidence on the right."
+
+**7. Datasets (A).** "Four assigned datasets and two that stress hypotheticals and nested tables. Related datasets share documents, so we never pool."
+
+**8. Pipeline (A).** "Only the packing step varies. Gold answers meet predictions only at scoring." Hand over to B.
+
+**9. Dependency graph and packing (B).** "Ordinary repeats labels; dependency pays for each label once. The first cell costs more, every later cell less." **→ show: Paying for labels.**
+
+**10. PySpark (B).** "Spark SQL explodes the dependency arrays into 1.88 million edges, checks that none is dangling, finds 491 duplicate documents and writes partitioned Parquet. At this size Python is faster; Spark gives a verified store." **→ show: Inside PySpark.**
+
+**11. Grounded answers (B).** "The model copies numbers; code checks and computes. Invented numbers are rejected, wrong real ones are not, which is why labels matter." **→ show: Copy, then check.**
+
+**12. Experimental setup (B).** "Three measurements, cheapest first. Answers come from Gemini 3.5 Flash-Lite, used as served with no fine-tuning; Block B uses Gemini 3.1 Flash-Lite." **→ show: How we measure.**
+
+**13. Result 1 (B).** "Dependency keeps more gold evidence on all six datasets at the chosen budgets, 146 to 7 on HybridQA. The gap closes as budgets grow and reverses at 200 tokens." **→ show: Results.**
+
+**14. Result 2 (B).** "Answers are at least as good on all six datasets and significantly better on TAT-QA, +11.3 points." **→ show: A real question, replayed.**
+
+**15. Result 3 (B).** "The executor gives no consistent gain with this model. MultiHiertt's +22.1 was a scoring artefact; under one rule it is +6.2 with an interval through zero." **→ show: A result we withdrew.**
+
+**16. Conclusion (B).** Read the five lines, then future work. **→ show: Conclusion.** Invite questions.
+
+## Visualizations
+
+| Clip | Slide | Say |
 |---|---|---|
-| Opening | 0:00 | (Title card: stay silent until the quote appears, about 6 s.) "A number in a financial report means nothing on its own. Our project is about what happens when a language model is given numbers without the labels that explain them." |
-| What does 637 mean? | 0:22 | "This is a real FinQA table. The question asks for American Express's average payment volume per transaction. The answer is 637 divided by 5.0, but notice what makes that possible: the row label, and two column headers. Remove them and the model is left with two bare numbers. It cannot tell which is the volume and which is the count." |
-| Reading budget | 0:52 | "In practice the model cannot read everything. A HybridQA document has a median of about 8,900 tokens, and we give the model a budget of fifteen hundred. So a system must decide which facts go in. Our question is whether the labels go in with them." |
-| Pipeline | 1:16 | "Here is the pipeline, shared across all six datasets. A reader turns each dataset into facts, each one remembering which other facts explain it. BM25 ranks them, packing fills the budget, the model answers once, and its answer is checked and executed before the official scorer marks it. Packing is the only thing we change. Gold answers join only at scoring; we checked 443 saved prompts and none contained one." |
-| Three packing methods | 1:50 | "Same budget, three ways to fill it. Ordinary packing repeats the labels inside every cell; that is a fair baseline, not a weakened one. Dependency packing follows each fact to its headers, units, hierarchy and links, and keeps each of them once, with the table structure. Length-matched packing adds neighbouring text up to the same length, to test whether more text alone is enough." |
-| Literal grounding | 2:21 | "The model writes a small program and copies its numbers. Our code finds each number in the evidence. Both are there, so the program runs: 637 divided by 5.0 is 127.4. If a number appears nowhere, like 640 here, the answer is rejected. The earlier version asked for character positions instead and answered only 2 of 883 FinQA questions, though that run also used a different model." |
-| Result | 2:58 | "And the main result. On all 3,466 HybridQA questions, dependency packing keeps more of the needed evidence at every budget. At 1,500 tokens, 146 questions are kept only by dependency packing and 7 only by ordinary. Across all six datasets, dependency packing is ahead at each dataset's chosen budget: about four points on HybridQA and MultiHiertt, under one point on FinQA and ConvFinQA. At the smallest budget, two hundred tokens, the extra structure costs coverage on ConvFinQA and MultiHiertt. And at four thousand tokens the gap is zero on the four smaller datasets." |
-| Closing | 3:45 | "So: keep the labels with the facts, most of all when documents are much larger than the budget. Now let us show you how we tested this, and how far the answers follow." |
-
-## Part 2: slides
-
-**1. Title (A, 20 s).** Names. "We test whether keeping each number's labels with it helps when a model can only read part of a document."
-
-**2. A number means nothing without its labels (A, 1 min).** Point to the two highlighted cells, then the row label and the headers. "The model needs all five. With a tight budget, labels compete with facts for space."
-
-**3. Research question and data (A, 1 min).** Read the question in the box. "Same model, same budget; only packing changes. Four datasets were assigned and we added two. Related datasets share documents, so we never pool results. Feeding gold answers through each official scorer gives 100% on five datasets; MultiHiertt gives 90.5% because its span path drops minus signs."
-
-**4. Pipeline (A, 1 min).** Walk left to right once. "Only the orange box changes. Labels stay apart until scoring. Every raw response is saved, so we can re-score without new calls. Spark builds the fact store."
-
-**5. Three packing methods (A, 1 min 20 s).** Explain O, D and L in one sentence each. Then literal grounding: "copy values, code finds them, unknown values are rejected." Hand over to B.
-
-**6. A fair experiment (B, 1 min).** "First fix: at 4,000 tokens four datasets were not truncated in a 40-question sample, so the comparison would have been empty. We chose budgets from document sizes without labels. Three measurements: coverage on all 9,268 questions with no model, then two answer blocks, each on a single model."
-
-**7. Result 1, coverage (B, 1 min).** "Dependency is above ordinary on every dataset at the chosen budgets, most on HybridQA, 146 to 7, and MultiHiertt, 42 to 3. The gap closes as budgets grow, which is what the hypothesis predicts. Length-matched is lowest, so more text is not the same as the right labels."
-
-**8. Result 2, answers (B, 1 min 20 s).** "On 50 paired questions per dataset, dependency is at least as good as ordinary on all six. The clear gain is TAT-QA, +11.3 points, with an interval from +4.1 to +19.9. MultiHiertt +9.8 and FinQA +2.0 just touch zero, and ConvFinQA is flat because its documents nearly fit. In Block B the executor does not reliably beat direct answering; direct wins on HybridQA, which has text answers and no arithmetic."
-
-**9. What failed (B, 1 min).** "MultiHiertt first showed the executor 22 points ahead. Direct answers wrote percentages where gold uses fractions, and the official span path marks that wrong. Using one rule for both sides, the gap is +6.2 with an interval through zero, so we withdrew the claim. The remaining errors are real reasoning errors: wrong values, reversed percentage changes, over-long spans."
-
-**10. Big Data and conclusions (B, 1 min).** "Spark builds a store of 1.36 million facts and 1.88 million dependency edges, with zero unresolved, and finds 491 pairs of identical documents across datasets, which is why we never pool. At this size Python is faster, 15.8 seconds against Spark's best of 37 at four cores, and we say so. Conclusion: keep labels with facts; it measurably preserves evidence, the answers move the same way, and only TAT-QA's gain is clear at this sample size." Invite questions.
+| The budget forces a choice | 2 | "A model is given a limited evidence budget, so a long report has to be cut. Here is the median document in each dataset, measured in tokens, against the budget we give it. A HybridQA document needs about 8,900 tokens, and the budget is 1,500. And the size depends on how labels are written. With labels repeated in every cell, the same documents grow, MultiHiertt from about 3,700 tokens to 6,400. TAT-QA's median document fits its budget of 400 only when each label is written once. So the question is not only which facts to keep, but how to pay for their labels." |
+| A number needs its labels | 3 | "This is a real table from a Visa annual report, in the FinQA development set. The question asks for American Express's average payment volume per transaction. Our retriever ranks two cells highest: 637 and 647. Without their labels they are just two similar numbers. Only the column headers say that 637 is payments volume and 647 is total volume. So the answer, 637 divided by 5.0 billion transactions, which is 127.4, depends on the labels as much as on the values." |
+| The reference pipeline | 4 | "Our starting point is a 2023 study, Numerical Reasoning for Financial Reports, by Arun and colleagues at Georgia Tech. It answers questions about an annual report in five steps. First it finds the tables in the PDF and extracts them. Then it serializes each table into sentences, such as: the revenue of 2019 is 100, the cost of 2019 is 50. It splits the text into chunks, and FAISS picks the one chunk most similar to the question. A fine-tuned model, T5 or Llama 2, writes the solution steps, and a regular expression parses them. Here is the crux. The fine-tuned T5 picks the right operation 95 percent of the time and the right numbers about two thirds of the time, but its own arithmetic is right only 12 percent of the time. Handing the arithmetic to a calculator lifts that to 62 percent. Three of its choices are where our project starts. Its sentences repeat the row and column label for every number. Its search keeps one chunk, so the model sees only part of the report. And its calculator lesson says the model should choose the numbers, and code should compute." |
+| Our idea: a graph of labels | 5 | "Here is our idea, on the Visa table. Every cell becomes a fact, and every label becomes a fact too. Each number gets arrows to the labels it needs: its column header and its row label. The row label, American Express, is shared by every number in the row. Now a question arrives, and the retriever ranks 637 first. Packing takes 637 and follows its arrows, so payments volume and American Express come with it: 18 tokens. Next comes 647. It needs total volume and American Express, but American Express is already in, so only the new header is paid for: 29 tokens in total. 86 and 5.0 follow the same way, and the whole row costs 50 tokens. Each label enters once, and every number that needs it points to it. Ordinary packing would copy American Express next to every number instead, and the same row would cost 57. So the model receives a small table, inside the budget, where every number is still readable." |
+| Paying for labels | 9 | "Here is the American Express row, packed two ways. Ordinary packing writes each cell with its labels: payments volume, American Express, 637. The next cell repeats American Express, and so does every cell after it. Dependency packing writes each label once and lets the cells point to it. Its first cell costs more, 18 tokens against 15, because the headers come with it. But every further cell reuses them, and the row costs 50 tokens instead of 57. The third method, length-matched, writes facts the ordinary way and adds their neighbours until it uses as many tokens as dependency packing, to test whether more text alone helps. Here it spends its tokens on a Mastercard cell next to 637, and 5.0 no longer fits. Over every FinQA table, a cell with its labels costs 15 tokens on average, and a bare cell under 4. In MultiHiertt's nested tables the ratio is eight to one. That is the whole trade: a fixed cost for structure, then more facts per token." |
+| Inside PySpark | 10 | "This is what happens to the data before any question is asked. Six datasets arrive in different shapes: JSON files, a zip archive, HTML tables and a linked Wikipedia corpus. Python readers turn all of them into three tables: documents, questions and facts. Each fact keeps the list of labels it needs, the arrows of our graph, as an array. PySpark loads the three tables as DataFrames. It explodes each fact's array into one row per arrow, 1,884,748 edges in all. An anti-join checks that every arrow points to a real fact, and none is missing. A self-join on content hashes finds 491 pairs of identical documents across datasets, which is why we never pool them. Everything is written as Parquet, partitioned by dataset and split, in 0.18 gigabytes instead of 0.95. And the job only counts if it matches an independent Python run exactly." |
+| Copy, then check | 11 | "The model does not write the answer. It writes a short plan and copies each number from the evidence. Our code looks for every copied number in the evidence. 637 and 5.0 are both there, so the plan runs and gives 127.4. If the model writes a number that appears nowhere, like 640, the plan is rejected. But if it copies the wrong real number, 647, the check passes and the answer is wrong. Grounding stops invented numbers; only the labels stop wrong choices, and that is why packing matters. Our earlier design asked for character positions instead and answered only 2 of 883 FinQA questions, though that run also used a different model." |
+| How we measure | 12 | "We measure in three steps, from cheapest to most expensive. First, a coverage audit with no model at all: after packing, is every number the gold answer needs still in the evidence? For the Visa question the gold program divides 637 by the constant 5, so only 637 has to survive. We run this on every development question, 9,268 of them, at five budgets and three methods. Here each HybridQA question is one dot. Most are kept by both methods or lost by both, and they say nothing about the difference. What matters are the questions only one method keeps: 146 only by dependency packing, 7 only by ordinary. Second, Block A: 50 sampled questions per dataset, answered by Gemini 3.5 Flash-Lite, a hosted model used without any fine-tuning, once with each packing method. Third, Block B: on the same evidence, Gemini 3.1 Flash-Lite with our executor, against the same model answering directly." |
+| Results | 13 | "Here is the gold evidence kept against the budget, on all six datasets. Dependency packing is on top at the chosen budgets everywhere, and the curves meet as the budget grows. This is the gap at each dataset's chosen budget. It is largest where documents are far larger than the budget, HybridQA and MultiHiertt, and smallest on FinQA and ConvFinQA, whose documents are mostly prose. At 200 tokens the fixed cost of structure loses on ConvFinQA and MultiHiertt. At 4,000 tokens the gap is zero on the four smaller datasets. Answers move the same way: dependency packing is at least as good on all six datasets, but with 50 questions only TAT-QA's gain clears zero." |
+| A real question, replayed | 14 | "This is a real TAT-QA question from our answer experiment, with a budget of 400 tokens. It asks for the ratio of inventory reserves to accrued compensation in 2018. Both methods retrieved the same two paragraphs, which take 355 tokens. Ordinary packing spent the rest on three labelled cells and stopped at 398 tokens. Accrued compensation, 358, needed 17 more tokens, so it did not fit. The model said the evidence does not contain accrued compensation, and abstained. Dependency packing paid 33 tokens for the labels once and 3 tokens per cell, so 358 fit in the same budget. The model divided 948 by 358 and got 2.65, the gold answer." |
+| A result we withdrew | 15 | "Block B first showed the executor 22 points ahead on MultiHiertt. Looking at the answers, direct answers often wrote a percentage, minus 29.92, where the gold answer is the fraction minus 0.2992. The official scorer compares those as text and marks them wrong, while executor programs are scored on a different path. Scored by the same numeric rule on both sides, the gap falls to 6.2 points, with an interval from minus 6.2 to plus 20. So we withdrew the claim." |
+| Conclusion | 16 | "To close. The problem: large tables must fit a model's fixed context window, and numbers without labels mean nothing. The reference study kept labels by repeating them with every number, at four to eight times the tokens per cell. Our method writes each label once and links every number to it, as a dependency graph packed under the budget. PySpark builds and verifies the 1.36 million facts and 1.88 million label links behind it. And the result: more of the evidence a question needs survives on all six datasets, and Gemini 3.5 Flash-Lite answers at least as well, clearly better on TAT-QA." |
 
 ## Likely questions
 
+- *How do your numbers compare with the reference paper's?* They do not compare directly: different models, splits and metrics (they report exact match of parsed steps on 256 FinQA validation samples; we report official scorers). We use their findings as motivation, not as a baseline.
 - *Why not a bigger sample?* Free-tier limit of 500 requests per day per model. Runs resume from saved answers, so more data only costs more days.
-- *Is the comparison fair to ordinary packing?* It gets every label inline, at the same budget, model and prompt. Only the packing differs.
-- *Why is Spark slower?* 1.4 million rows fit in one machine's memory; Spark's fixed start-up and coordination costs dominate. Its value here is a checked, partitioned store.
+- *Is the comparison fair to ordinary packing?* It gets every structural label inline, at the same budget, model and prompt. Only the packing differs.
+- *Why does dependency packing lose at 200 tokens?* Its first fact from a table carries all its headers (18 tokens against 15 in the Visa row). With room for only a few facts, that fixed cost crowds out other evidence.
+- *Why is Spark slower?* 1.4 million rows fit in one machine's memory; Spark's start-up and coordination costs dominate. Its value here is a checked, partitioned store.
 - *Could gold answers have leaked?* Labels are stored separately and joined only at scoring. A check of 443 saved prompts found no label fields.

@@ -53,10 +53,10 @@ measure for FinQA and ConvFinQA, whose direct answers have no program.
 
 | Deliverable | File |
 |---|---|
-| Report (6 pages) | [`report/main.pdf`](report/main.pdf), source `report/main.tex` |
-| Slides (10) | [`presentation/slides.pdf`](presentation/slides.pdf), source `presentation/slides.tex` |
-| Explainer video (4:01, 1080p) | [`presentation/video/explainer.mp4`](presentation/video/explainer.mp4), source `presentation/video/explainer.py` |
-| Presentation script | [`presentation/speaker_notes.md`](presentation/speaker_notes.md): live video narration and slide notes |
+| Report (5 pages, IEEE format) | [`report/main.pdf`](report/main.pdf), source `report/main.tex` |
+| Slides (16) | [`presentation/slides.pdf`](presentation/slides.pdf), source `presentation/slides.tex` |
+| Visualizations (12 Manim clips, 1080p) | [`presentation/video/clips/`](presentation/video/clips/), numbered in playing order and cued in the slide script; source `presentation/video/clips.py` |
+| Presentation script | [`presentation/speaker_notes.md`](presentation/speaker_notes.md): slide script with visualization cues, and clip narration |
 
 ## Setup
 
@@ -79,9 +79,13 @@ scripts/run_v11.sh b gemini-3.1-flash-lite b_grounded,b_direct finqa tatqa tathq
 scripts/run_spark.sh 100 1000 full
 PYTHONPATH=src:scripts .venv/bin/python scripts/error_analysis.py artifacts/v11/b b_grounded dependency
 PYTHONPATH=src:scripts .venv/bin/python scripts/report_tables.py
-.venv/bin/python scripts/document_sizes.py             # median document sizes (video)
+.venv/bin/python scripts/document_sizes.py             # median document sizes
+.venv/bin/python scripts/label_cost.py                 # what inline labels cost, per cell and per document
+PYTHONPATH=src:scripts .venv/bin/python scripts/video_examples.py   # exact numbers behind the clips
+.venv/bin/python scripts/model_usage.py                # model, served version, token usage
+PYTHONPATH=src .venv/bin/python scripts/report_figures.py   # report figures from artifacts
 (cd report && make)                                    # report PDF, tectonic
-(cd presentation/video && manim -qh explainer.py Explainer)   # times scenes from speaker_notes.md
+(cd presentation/video && manim -qh -a clips.py)       # clips, timed from speaker_notes.md
 ```
 
 Free-tier quota for `gemini-3.5-flash-lite` is 500 requests per day. Runs stop at the

@@ -1,310 +1,438 @@
-\documentclass[11pt]{article}
-\usepackage{acl2023}
-\usepackage{times,latexsym}
+\documentclass[conference]{IEEEtran}
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
+\usepackage{times}
 \usepackage{microtype}
 \usepackage{graphicx}
-\title{Dependency-Preserving Evidence Packing for Numerical Question Answering}
-\author{Pushpendra Singh \and Badri Bishal Das \\ Indian Institute of Technology Guwahati}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{cite}
+\usepackage[hidelinks]{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc,matrix}
+
+\definecolor{ink}{HTML}{1F2328}
+\definecolor{muted}{HTML}{5E6168}
+\definecolor{rule}{HTML}{D9D7D0}
+\definecolor{ordblue}{HTML}{2A78D6}
+\definecolor{deporange}{HTML}{EB6834}
+\definecolor{lenaqua}{HTML}{1BAF7A}
+\definecolor{rowlab}{HTML}{E3A600}
+\definecolor{colhead}{HTML}{C9CCD1}
+\tikzset{
+  stage/.style={draw=muted,rounded corners=2pt,fill=white,align=center,font=\scriptsize,minimum height=7mm,inner xsep=1pt,text width=12.5mm},
+  hot/.style={stage,draw=deporange,line width=.9pt},
+  flow/.style={-{Stealth[length=1.6mm]},muted},
+}
+
 \begin{document}
+\title{Dependency-Preserving Evidence Packing\\for Numerical Question Answering over Financial Reports}
+\author{\IEEEauthorblockN{Pushpendra Singh \qquad Badri Bishal Das}
+\IEEEauthorblockA{Indian Institute of Technology Guwahati\\Big Data course project}}
 \maketitle
+
 \begin{abstract}
-A number in a financial report means little without its row, column, unit and
-source. When evidence must fit a small token budget, does keeping those
-dependencies with each selected fact improve question answering? We build one
-pipeline over six benchmarks and compare ordinary packing, recursive dependency
-packing and a length-matched control at a fixed budget. Over every development
-question (9,268 scored questions) dependency packing retains complete gold
-evidence more often than ordinary packing on all six datasets, by 0.3 to 4.0
-percentage points at the chosen caps, and the advantage disappears on four of the
-datasets when budgets grow. On 50 paired questions per dataset, dependency packing
-scores at least as high as ordinary packing on all six datasets (0 to +11.3 points),
-with an interval excluding zero only on TAT-QA. Answers that copy literal values, resolved locally to evidence spans, replaced an
-earlier pipeline in which almost all outputs failed validation; the model also
-changed, so we do not credit the format alone. An arithmetic executor shows no
-consistent accuracy gain over direct answering, and direct answering is better on
-HybridQA. Spark preparation is checked against a Python reference on every run.
+A language model answering questions about a financial report sees only the evidence
+that fits its context window. The answers sit in tables, and a table cell is
+meaningless without its row and column labels. Dropping the labels makes numbers
+ambiguous; repeating them with every number costs 2.2 to 8.3 times more tokens per
+cell and pushes needed numbers out of the window. We represent each report as a
+dependency graph in which every number links to the labels it needs, and pack evidence
+so that each label is written once and shared. A PySpark pipeline builds and verifies
+the graph for six datasets: 1.36 million facts and 1.88 million label links. Over all
+9,268 development questions, the method keeps the gold evidence more often than
+label-repeating packing on all six datasets, by 0.3 to 4.0 points at the chosen
+budgets. The gain closes as budgets grow and reverses at a 200-token budget. With
+Gemini 3.5 Flash-Lite, answers are at least as good on all six datasets and better on
+TAT-QA by 11.3 points.
 \end{abstract}
 
-\section{Problem and motivation}
-A value such as ``15'' is difficult to interpret without its year, row label,
-unit, and sometimes an ancestor header. A linked passage may be relevant only
-through the table cell that introduced it. Conversational questions can refer
-to earlier answers, while hypothetical questions change the facts being used.
-Flattening evidence can weaken these relationships even when the correct number
-is present. We ask: with the same model and evidence budget, does preserving
-dependencies between evidence and its headers, units, hierarchy and links improve
-answer quality compared with ordinary evidence packing?
+\section{Introduction}
+Analysts query annual reports for specific numbers: a margin, a growth rate, a ratio
+of two line items. Answering such questions is table--text hybrid question answering.
+A large language model (LLM) can do it, but only from the text in its prompt, and a
+report is far longer than the evidence budget a system gives the model. The system
+must retrieve a few facts and \emph{pack} them into that budget.
 
-We do not assume improvement on every dataset. The intervention can consume space
-needed for other facts, and incorrectly inferred headers can hurt. The hypothesis
-also predicts its own limit: when a whole document fits the budget, packing has
-nothing to decide, so any gain should shrink as budgets grow.
+Tables make this hard. Fig.~\ref{fig:example} shows a real FinQA table. The question
+asks for American Express's average payment volume per transaction. A retriever ranks
+637 and 647 highest; only their column headers say that the first is payments volume
+and the second total volume. Packed without labels, the two are interchangeable.
+Packed with all their labels, as in serializations such as ``the revenue of 2019 is
+100''~\cite{arun2023}, each cell costs several times more and fewer cells fit. We need
+packing that keeps every number's labels and still fits the budget.
 
-\section{Related work}
-FinQA introduces program-based numerical reasoning over financial reports
-\citep{finqa}. TAT-QA combines table and paragraph evidence with multiple answer
-types \citep{tatqa}. ConvFinQA requires sequential numerical reasoning over
-conversation turns \citep{convfinqa}. HybridQA tests multi-hop reasoning over
-Wikipedia tables and linked passages \citep{hybridqa}; it is a transfer test,
-not a finance benchmark. Learning to Imagine introduces hypothetical reasoning
-over financial evidence \citep{tathqa}, and MultiHiertt combines hierarchical
-tables and text with span and program reasoning \citep{multihiertt}.
-Program of Thoughts delegates computation to an external interpreter \citep{pot}.
-TAT-LLM uses an extractor--reasoner--executor pipeline \citep{tatllm}. These are
-established approaches. Our contribution is a controlled study of deterministic
-dependency closure at a fixed evidence budget, not a claim that retrieval,
-structured evidence, or executable reasoning is new.
-FINDER combines generative retrieval with dynamically selected in-context
-examples \citep{finder}. FinCARDS uses finance-aware schema alignment and
-tournament reranking to select evidence with audit traces \citep{fincards}.
-These close approaches limit our novelty claim. We instead use deterministic
-lexical ranking and recursive closure of actual header, unit, hierarchy and
-link dependencies, with one model call and the same model and cap across methods.
-
-\section{Datasets and scope}
-All runs use the supplied document context rather than searching a global corpus.
-Official splits stay separate and official scorers run unchanged in isolated
-processes. Passing gold answers from 200 development questions through the scoring
-path gives 100\% on five datasets. MultiHiertt gives 90.5\% for gold answers sent as
-text, because its span path removes minus signs before comparing numbers. Programs
-use a separate path. Section~\ref{sec:executor} measures what this means for us.
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrl}
-Dataset & Dev questions & Main challenge\\\hline
-FinQA & 883 & Arithmetic programs\\
-TAT-QA & 1,668 & Spans, arithmetic, scale\\
-ConvFinQA & 1,490 turns & Predicted turn history\\
-HybridQA & 3,466 & Cell-to-passage links\\
-TAT-HQA & 824 & Hypothetical changes\\
-MultiHiertt & 1,044 & HTML hierarchy\\
-\end{tabular}
-\caption{Development data. HybridQA requires its separate linked corpus of 15,314
-tables, and every development question resolves to a table in it.}
-\end{table}
-FinQA and ConvFinQA share source documents, as do TAT-QA and TAT-HQA, so these are
-not six independent replications and we never pool them. HybridQA is general
-knowledge, which makes it a test of whether the idea transfers, not of financial
-arithmetic.
-
-\section{Shared architecture}
 \begin{figure}[t]
 \centering
-\fbox{\parbox{.90\columnwidth}{Prediction-only readers $\rightarrow$ BM25 retrieval
-$\rightarrow$ evidence packing $\rightarrow$ model $\rightarrow$ literal grounding
-$\rightarrow$ bounded execution $\rightarrow$ output adapter $\rightarrow$ official
-scorer. References join only at scoring. Earlier predicted state feeds the next
-conversation turn.}}
-\caption{One reasoning architecture with dataset-specific input and scoring.}
+\begin{tikzpicture}[font=\scriptsize]
+\matrix (t) [matrix of nodes, nodes={draw=rule,minimum height=4.2mm,inner xsep=2pt,anchor=center},
+  column sep=-\pgflinewidth, row sep=-\pgflinewidth,
+  column 1/.style={nodes={text width=16mm}}, column 2/.style={nodes={text width=10mm,align=right}},
+  column 3/.style={nodes={text width=9mm,align=right}}, column 4/.style={nodes={text width=12mm,align=right}},
+  column 5/.style={nodes={text width=8mm,align=right}}]{
+  company & paym.\ vol. & total vol. & transactions & cards\\
+  mastercard & 1697 & 2276 & 27.0 & 916\\
+  amer.\ express & |[fill=rowlab!35]| 637 & |[fill=rowlab!35]| 647 & 5.0 & 86\\
+  discover & 102 & 119 & 1.6 & 57\\
+};
+\end{tikzpicture}\\[2pt]
+{\scriptsize ``What is the average payment volume per transaction for American Express?''
+$637 \div 5.0 = 127.4$.}
+\caption{Running example from the FinQA development set (V/2008/page\_17, rows
+abridged). The two top-ranked cells differ only by their column header.}
+\label{fig:example}
 \end{figure}
-Each fact stores raw text, provenance and the IDs of the facts needed to interpret
-it. Answers, gold evidence, derivations, reference programs and future turns never
-enter retrieval or prompts. We confirmed this on saved requests: none of 443
-inspected prompts contains a label field, and no prompt contains a FinQA gold program.
 
-\subsection{Retrieval and packing}
-BM25 ranks cells and paragraphs using the question, earlier questions and immediate
-dependency text, with stable tie-breaking. Candidates are visited in rank order and
-a whole bundle is admitted only if it fits; strings are never cut.
-\begin{description}\itemsep0pt
-\item[Ordinary (O).] Each selected fact carries its structural labels inline. This
-is a deliberately fair baseline, because removing labels would make it trivially weak.
-\item[Dependency (D).] Each selected fact pulls in the recursive closure of its
-headers, units, hierarchy and link anchors, shared once.
-\item[Length-matched (L).] A selected fact is followed by its source neighbours up
-to D's length, without using dependency edges.
-\end{description}
-All methods present evidence in document order and spend budget identically on
-conversation history. Budgets are counted locally on the exact text shown to the
-model, as UTF-8 bytes divided by four. This is an estimate, so actual prompt tokens
-are recorded separately from provider metadata.
+\textbf{Contributions.}
+\begin{itemize}
+\item Dependency-preserving packing: each number is admitted with the labels it points
+to, and a label already packed costs nothing. We give its exact token trade-off: a
+fixed cost for structure, then cells 2.2 to 8.3 times cheaper.
+\item A PySpark data layer that normalises six datasets into one verified store of
+facts and label links.
+\item A coverage audit over all 9,268 development questions, five budgets and three
+packing methods, with no model in the loop.
+\item A paired answer experiment with Gemini 3.5 Flash-Lite, in which the model copies
+numbers and code checks and computes them.
+\end{itemize}
 
-\subsection{Literal grounding}
-The earlier design asked the model to cite each operand by evidence ID and character
-offsets. We replace this with copying. The model returns a program such as
-\texttt{subtract("100","80"), divide("\#0","80")} or a quoted phrase, and code locates
-each value in the packed evidence or the question. A number found in neither place
-rejects the plan, so the model cannot introduce an unsupported value, and it never
-has to count characters. Plans then run in a bounded decimal interpreter restricted to the official
-operations. There is no self-repair loop: a rejected plan scores zero.
+\section{Problem statement and objectives}
+The assigned problem is numerical reasoning over financial reports on FinQA, TAT-QA,
+ConvFinQA and HybridQA. Our question: \emph{with the same model and the same evidence
+budget, does keeping each number's headers, units, hierarchy and links improve answers
+over packing that repeats labels inline?} The hypothesis predicts two limits. Labels
+consume budget, so the method can lose when almost nothing fits; when the whole document
+fits, there is nothing to choose. Objectives: (O1) one pipeline over the four assigned
+datasets plus TAT-HQA and MultiHiertt, scored by the official evaluators; (O2)
+dependency-preserving packing against label-repeating and length-matched baselines at
+a fixed budget; (O3) a verified PySpark preparation of all six datasets; (O4) a paired
+answer test; (O5) answers grounded in the evidence.
 
-\section{Experimental protocol}
-\paragraph{Budgets.} The caps inherited from earlier work do not test the hypothesis:
-at 4,000 tokens four datasets had no truncation in a 40-question sample, so
-methods differed only in layout. We chose each cap from
-document sizes, without labels. For FinQA and ConvFinQA (800) and TAT-QA and TAT-HQA
-(400) it is the largest tested value truncating about 70\% or more of sampled
-documents. HybridQA and MultiHiertt are still 93\% truncated at 4,000, so we used
-1,500 as a judgement call that keeps prompts within a modest size.
+\section{Datasets}
+We use the development splits of six datasets (Table~\ref{tab:data}), each from its
+official repository at a pinned commit, with the supplied document context and the
+official scorers. FinQA and ConvFinQA share documents, as do TAT-QA and TAT-HQA, so we
+never pool results. HybridQA is Wikipedia rather than finance and tests whether the
+method transfers. Passing gold answers from 200 development questions through each
+scorer gives 100\% on five datasets and 90.5\% on MultiHiertt, whose span path drops
+minus signs.
+\begin{table}[t]
+\centering\footnotesize\setlength{\tabcolsep}{4pt}
+\caption{Development data. D and O: median document size in tokens with each label
+written once and with labels repeated in every cell.}
+\label{tab:data}
+\begin{tabular}{lrlrrr}
+\toprule
+Dataset & Questions & Challenge & D & O & Budget\\\midrule
+FinQA & 883 & programs & 1,041 & 1,112 & 800\\
+ConvFinQA & 1,490 turns & history & 979 & 1,062 & 800\\
+TAT-QA & 1,668 & spans, scale & 396 & 592 & 400\\
+TAT-HQA & 824 & hypotheticals & 396 & 592 & 400\\
+HybridQA & 3,466 & passage links & 8,928 & 11,142 & 1,500\\
+MultiHiertt & 1,044 & hierarchy & 3,693 & 6,435 & 1,500\\
+\bottomrule
+\end{tabular}\\[2pt]
+{\scriptsize Sources (GitHub): czyssrs/FinQA, czyssrs/ConvFinQA, NExTplusplus/TAT-QA,
+NExTplusplus/TAT-HQA, wenhuchen/HybridQA, psunlpgroup/MultiHiertt.}
+\end{table}
 
-\paragraph{Evidence coverage.} A label-only audit after packing, using no model,
-asks whether every gold operand or answer phrase survives, on the full development
-split for each cap. It uses the question as well as the evidence, and treats allowed
-constants as available. It shows that a value is present, not that it is used
-correctly.
+\section{Proposed methodology}
+Fig.~\ref{fig:pipeline} shows the pipeline. Only the packing step differs between the
+three methods we compare.
 
-\paragraph{Model experiments.} Free-tier limits shape the design: the provider's
-refusal response for \texttt{gemini-3.5-flash-lite} states a limit of 500 requests per day.
-Each comparison stays on one model, and we never compare across models.
-Block A compares O, D and L on \texttt{gemini-3.5-flash-lite}. Block B compares the
-executor with direct answering, both on D evidence, on \texttt{gemini-3.1-flash-lite}.
-Samples are chosen by a fixed seed before any model call, conversations are kept
-whole, and prompts were checked on separate questions rather than the evaluation
-sample. We report official execution accuracy for FinQA and ConvFinQA and official
-F1 elsewhere. Direct answers have no program, so Block B uses a labelled auxiliary
-measure for those two datasets: 1\% relative tolerance, also accepting the fraction
-and percentage forms of one value. Abstained and rejected answers stay in the
-denominator as zero. Intervals are paired bootstrap resamples of whole documents or
-conversations (2,000 resamples, seed 2626). Six comparisons per block are not
-corrected for multiplicity, so single intervals should be read cautiously.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=2.1mm]
+\node[stage] (o1) {PySpark:\\fact graph};
+\node[stage,right=of o1] (o2) {BM25\\ranking};
+\node[hot,right=of o2] (o3) {packing\\(O / D / L)};
+\node[stage,right=of o3] (o4) {Gemini:\\copy numbers};
+\node[stage,right=of o4] (o5) {check +\\execute};
+\foreach \a/\b in {o1/o2,o2/o3,o3/o4,o4/o5}\draw[flow] (\a)--(\b);
+\node[stage,below=3mm of o1] (g) {gold answers};
+\node[stage,below=3mm of o5] (s) {official\\scorer};
+\draw[flow] (o5)--(s);
+\draw[flow,densely dashed] (g)--(s) node[midway,below,font=\tiny,muted] {joined only at scoring};
+\end{tikzpicture}
+\caption{Pipeline. The highlighted step is the only one that varies.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{Evidence as a dependency graph}
+Readers turn each document into \emph{facts}: raw text, provenance, and the IDs of the
+facts needed to read it (Fig.~\ref{fig:graph}). A table cell depends on its column
+header, row label, corner header and section row. TAT-QA cells also depend on unit
+paragraphs (``in thousands''); a HybridQA passage depends on the cell that links to
+it; MultiHiertt cells depend on multi-row HTML headers and section headings. Headers are
+inferred from layout and flagged uncertain. Gold answers never enter prompts: none of
+443 inspected prompts contains a gold label field.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize,
+  fact/.style={draw=ink,rounded corners=1.5pt,fill=white,inner sep=2pt,font=\scriptsize\ttfamily},
+  lab/.style={draw=muted,rounded corners=1.5pt,fill=colhead!45,inner sep=2pt}]
+\node[fact] (a) at (0,0) {637};
+\node[fact] (b) at (2.1,0) {647};
+\node[fact] (c) at (4.2,0) {5.0};
+\node[lab] (ha) at (0,1.0) {payments volume (bn)};
+\node[lab] (hb) at (2.1,1.55) {total volume (bn)};
+\node[lab] (hc) at (4.2,1.0) {transactions (bn)};
+\node[lab,fill=rowlab!45] (row) at (2.1,-0.95) {american express};
+\foreach \x/\h in {a/ha,b/hb,c/hc}\draw[flow] (\x)--(\h);
+\foreach \x in {a,b,c}\draw[flow] (\x)--(row);
+\end{tikzpicture}
+\caption{Dependency graph for three cells of the running example. The row label is a
+single shared node.}
+\label{fig:graph}
+\end{figure}
+
+\subsection{Packing under the budget}
+BM25 ranks cells and paragraphs by the question and earlier questions. Candidates are
+admitted in rank order as whole bundles; strings are never cut, and a bundle that does
+not fit is skipped so smaller ones can still enter. Three methods spend the same budget:
+\begin{itemize}
+\item \textbf{Ordinary (O)}: each fact carries its structural labels inline. Labels are
+kept, so the baseline is fair.
+\item \textbf{Dependency (D)}: each fact enters with the recursive closure of its
+headers, units, hierarchy and link anchors; packed labels are free.
+\item \textbf{Length-matched (L)}: ordinary facts plus their document neighbours, up to
+D's token count. It tests whether more text alone helps.
+\end{itemize}
+Tokens are counted locally on the evidence text as UTF-8 bytes divided by four.
+
+Fig.~\ref{fig:strips} shows the trade-off. D's first cell costs 18 tokens against O's
+15 because its headers come with it; four cells cost 50 against 57. L spends its tokens
+on a neighbouring Mastercard cell and loses 5.0. Across all development tables, a
+labelled cell costs 15.1 tokens in FinQA against 3.6 bare (4.2$\times$), 15.6 against
+7.0 in HybridQA, and 24.7 against 3.0 in MultiHiertt (8.3$\times$). The median TAT-QA
+document needs 396 tokens with labels once and 592 with labels repeated; its budget is
+400 (Table~\ref{tab:data}).
+
+\begin{figure}[t]
+\centering
+\input{generated/token_strips.tex}\\[3pt]
+{\scriptsize
+\tikz\fill[colhead] (0,0) rectangle (.15,.15); column header\quad
+\tikz\fill[rowlab] (0,0) rectangle (.15,.15); row label\quad
+\tikz\fill[ink] (0,0) rectangle (.15,.15); value\quad one square = one token}
+\caption{Packing the American Express row. Numbers below each group are cumulative
+tokens.}
+\label{fig:strips}
+\end{figure}
+
+\subsection{Grounded answers}
+The model returns a JSON plan of official operations whose arguments are numbers copied
+from the evidence, e.g.\ \texttt{divide("637","5.0")}. Code locates each number in the
+packed evidence or the question, rejects the plan if one is missing, and computes the
+result in a bounded decimal interpreter. Grounding blocks invented numbers but not
+wrong real ones: \texttt{divide("647","5.0")} passes and returns 129.4. Labels are what
+prevent that choice.
+
+\section{Big Data implementation with PySpark}
+The six datasets come as JSON (FinQA, TAT-QA, TAT-HQA), a zip archive (ConvFinQA),
+HTML tables (MultiHiertt) and a linked corpus of 15,314 Wikipedia tables (HybridQA).
+Python readers normalise them into three JSON-lines tables: documents, keyed by a
+SHA-256 content hash so repeated contexts are stored once; questions, without labels;
+and facts, each holding its dependency IDs as an array. Spark 4.3.0 then runs four
+Spark SQL jobs over these DataFrames (Fig.~\ref{fig:spark}):
+\begin{itemize}
+\item a join of questions to documents;
+\item an \texttt{explode} of each fact's dependency array into an edge table, the graph's
+links;
+\item a \texttt{left\_anti} join of edges against fact IDs, which must be empty;
+\item a self-join of documents on content hash, which finds identical documents across
+datasets.
+\end{itemize}
+The store is written as Parquet partitioned by dataset and split, so one dataset can be
+read without scanning the others. The job runs in local mode with 8 shuffle partitions
+and a 3~GB driver, and fails unless its join count and hash, edge count and overlap
+list equal those of an independent single-process Python implementation.
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[node distance=2.4mm and 3mm,font=\scriptsize,
+  src/.style={draw=muted,rounded corners=1.5pt,fill=white,align=center,text width=14mm,minimum height=6mm},
+  job/.style={draw=deporange,rounded corners=1.5pt,fill=white,align=center,text width=19mm,minimum height=6mm},
+  sink/.style={draw=ink,rounded corners=1.5pt,fill=colhead!35,align=center,text width=16mm,minimum height=6mm}]
+\node[src] (s1) {6 datasets:\\JSON, zip, HTML};
+\node[src,below=of s1] (s2) {Python readers\\normalise};
+\node[src,below=of s2] (s3) {JSONL: docs,\\questions, facts};
+\node[job,right=6mm of s1] (j1) {join questions\\to documents};
+\node[job,below=of j1] (j2) {explode\\dependency arrays};
+\node[job,below=of j2] (j3) {left-anti join:\\unresolved edges};
+\node[job,below=of j3] (j4) {self-join on\\content hash};
+\node[sink,right=6mm of j2] (p) {Parquet,\\by dataset/split};
+\node[sink,right=6mm of j4] (v) {equal to Python\\reference?};
+\draw[flow] (s1)--(s2); \draw[flow] (s2)--(s3);
+\foreach \j in {j1,j2,j3,j4}\draw[flow] (s3.east) -- ++(1.5mm,0) |- (\j.west);
+\draw[flow] (j1.east) -| (p.north); \draw[flow] (j2)--(p);
+\draw[flow] (j3.east) -| (v.north); \draw[flow] (j4)--(v);
+\end{tikzpicture}
+\caption{PySpark data layer. Spark SQL jobs in orange.}
+\label{fig:spark}
+\end{figure}
+
+\textbf{Output.} The store holds 1,360,644 facts from 9,375 questions over 4,395
+deduplicated documents, with 1,884,748 edges and 0 unresolved. The self-join found 491
+identical document pairs across datasets, the measured reason we never pool. Parquet
+uses 0.18~GB against 0.95~GB of JSON lines (5.1$\times$ smaller).
+
+\textbf{Performance.} Table~\ref{tab:spark} times the same jobs at three data sizes and
+1, 2, 4 and 8 cores on an eight-core laptop. On the full data Spark is fastest at four
+cores, 37.0~s (36,700 facts/s), and slowest at eight, 65.6~s. Single-process Python
+takes 15.8~s (86,000 facts/s). With 1.4 million rows and a 1.7~GB peak, the data fits
+in memory, so JVM start-up, shuffles and collecting results to the driver for the
+equality check are the likely overheads; we did not profile them. Parsing raw files into
+facts takes 120~s in Python and is the real bottleneck. At this scale Spark contributes
+a verified, partitioned columnar store, not speed, and we make no cluster scalability
+claim.
+
+\textbf{Batch evaluation.} The coverage audit runs 139,020 packings (9,268 questions
+$\times$ 5 budgets $\times$ 3 methods) over eight worker processes in 679~s. A SQLite
+ledger stores every model response under a frozen run contract (question IDs, seed,
+input and code hashes), so runs resume after free-tier quota stops and re-scoring needs
+no new calls.
+\begin{table}[t]
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{Wall time (s): single-process Python and Spark on 1--8 cores. Size is records
+per source dataset. All runs equal the Python reference.}
+\label{tab:spark}
+\input{generated/spark.tex}
+\end{table}
+
+\section{Experimental setup}
+\textbf{Budgets.} At 4,000 tokens four datasets were never truncated in a 40-question
+sample, so the methods could not differ. We set each budget from document sizes, without
+labels: 800 for FinQA and ConvFinQA and 400 for TAT-QA and TAT-HQA (the largest tested
+values truncating about 70\% of sampled documents), and 1,500 for HybridQA and
+MultiHiertt, which stay 93\% truncated even at 4,000.
+
+\textbf{Measurements.} (1) The \emph{coverage audit} checks, with no model, whether every
+gold operand or answer phrase survives packing; for the running example the gold
+program is \texttt{divide(637, const\_5)}, so only 637 must survive. (2) \emph{Block A}
+answers 50 questions per dataset with each of O, D and L (45 turns in 15 ConvFinQA
+conversations). (3) \emph{Block B} compares the executor with direct answering on D
+evidence, 40 questions per dataset.
+
+\textbf{Model.} Table~\ref{tab:model} lists the configuration. Both models are used as
+served, with no training or fine-tuning; each question is one API call, and the two
+blocks are never compared with each other.
+
+\textbf{Scoring.} Official execution accuracy for FinQA and ConvFinQA and official F1
+elsewhere. Block B uses a 1\%-tolerance numeric measure for FinQA and ConvFinQA, since
+direct answers have no program. Abstained and rejected answers score zero. Intervals
+are paired bootstrap resamples of whole documents (2,000 resamples, seed 2626),
+uncorrected across the six comparisons per block.
+\begin{table}[t]
+\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{Model and inference configuration (from the frozen run contracts).}
+\label{tab:model}
+\begin{tabular}{lll}
+\toprule
+& Block A (packing) & Block B (executor)\\\midrule
+Model & Gemini 3.5 Flash-Lite & Gemini 3.1 Flash-Lite\\
+Served version & 3.5-flash-lite-07-2026 & 3.1-flash-lite-05-2026\\
+Training & none (as served) & none (as served)\\
+Output & schema-bound JSON & schema-bound JSON\\
+Max output tokens & 2,048 & 2,048\\
+Thinking level & low & low\\
+Temperature & provider default & provider default\\
+Responses & 885 & 472\\
+Median tokens in / out & 1,403 / 129 & 1,214 / 109\\
+Sample (seed 2626) & 50 per dataset & 40 per dataset\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Results}
 \subsection{Evidence coverage}
-Table~\ref{tab:coverage} and Figure~\ref{fig:coverage} are exact counts. At the chosen
-caps D keeps more gold evidence than O on all six datasets. Discordant questions
-favour D strongly on HybridQA (146 to 7) and MultiHiertt (42 to 3), and more mildly
-on TAT-QA and TAT-HQA, where the sign test is still clear. FinQA (9 to 1) is weaker,
-and ConvFinQA (6 to 1) is not significant. The gap is largest where documents are
-much larger than the budget, and it closes as budgets grow: at 4,000 tokens it is
-zero on the four smaller datasets. This is the behaviour the hypothesis predicts.
-The method also shows its measured limit. At the smallest cap (200 tokens) closure
-overhead costs coverage on ConvFinQA ($-$1.8 points, 36 against 63 discordant) and
-MultiHiertt ($-$0.8, 50 against 58): the dependencies themselves consume space needed
-for other facts, as Section~1 anticipates. Length-matched packing is worse than O throughout, so extra neighbouring context
-alone does not preserve what a question needs.
+At the chosen budgets D keeps more gold evidence than O on all six datasets
+(Table~\ref{tab:coverage}, Fig.~\ref{fig:coverage}). Questions kept by only one method
+favour D 146 to 7 on HybridQA and 42 to 3 on MultiHiertt; FinQA (9 to 1) is weaker and
+ConvFinQA (6 to 1) is not significant. The gap is largest where documents exceed the
+budget most, and smallest on FinQA and ConvFinQA, where labels add only 7--8\% to a
+document. It shrinks as the budget grows and is zero at 4,000 tokens on the four
+smaller datasets. At 200 tokens the fixed cost of structure loses: $-1.8$ points on
+ConvFinQA (36 against 63 discordant) and $-0.8$ on MultiHiertt (50 against 58). L is
+below O at every budget, so extra neighbouring text does not substitute for labels.
 \begin{table}[t]
-\centering\small\setlength{\tabcolsep}{2pt}
-\input{generated/coverage.tex}
-\caption{Questions with all gold evidence retained (\%). D+/O+ counts questions kept
-only by D or only by O; $p$ is a two-sided sign test on those counts. Exact values
-over every scorable development question.}
+\centering\footnotesize\setlength{\tabcolsep}{2pt}
+\caption{Questions with all gold evidence retained (\%). D+/O+: kept only by D or only
+by O; $p$: two-sided sign test.}
 \label{tab:coverage}
+\input{generated/coverage.tex}
+\end{table}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=.82\textwidth]{generated/coverage_wide.pdf}
+\caption{Gold evidence retained against budget, full development splits.}
+\label{fig:coverage}
+\end{figure*}
+
+\subsection{Effect on answers}
+With Gemini 3.5 Flash-Lite, D scores at least as high as O on all six datasets, by 0 to
+11.3 points (Table~\ref{tab:blocka}). Only TAT-QA's gain has an interval excluding
+zero: +11.3 [+4.1, +19.9]. MultiHiertt (+9.8) and FinQA (+2.0) touch zero at the lower
+bound. The pattern follows coverage: largest on hierarchical tables, absent on
+ConvFinQA, whose documents nearly fit.
+
+Fig.~\ref{fig:replay} replays one TAT-QA question with the saved model outputs: the
+ratio of inventory reserves to accrued compensation in 2018, at a budget of 400. Both
+methods pack the same two paragraphs (355 tokens). O fills the rest with three labelled
+cells and stops at 398; the accrued-compensation cell, 358, needs 17 more tokens. The
+model reports that the evidence lacks accrued compensation and abstains. D pays 33
+tokens for the labels once and 3 per cell, fits 358, and the model's plan
+\texttt{divide("948","358")} returns 2.65, the gold answer.
+\begin{table}[t]
+\centering\footnotesize\setlength{\tabcolsep}{2.2pt}
+\caption{Block A answer scores (\%), Gemini 3.5 Flash-Lite. Execution accuracy for
+FinQA and ConvFinQA, F1 otherwise.}
+\label{tab:blocka}
+\input{generated/block_a.tex}
+\end{table}
+\begin{table}[t]
+\centering\footnotesize\setlength{\tabcolsep}{2.2pt}
+\caption{Block B (\%), Gemini 3.1 Flash-Lite: executor against direct answering on D
+evidence. MultiHiertt is official F1; under one numeric rule the gap is +6.2.}
+\label{tab:blockb}
+\input{generated/block_b.tex}
 \end{table}
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{generated/coverage.pdf}
-\caption{Gold evidence retained against evidence cap, on full development splits.}
-\label{fig:coverage}
+\input{generated/replay.tex}
+\caption{TAT-QA question at budget 400. Yellow: labels inline; dark: values; grey:
+labels written once. O (398 tokens) has no room for 358; D (400) fits it.}
+\label{fig:replay}
 \end{figure}
 
-\subsection{Effect of packing on answers}
-\IfFileExists{generated/block_a_note.tex}{\input{generated/block_a_note.tex}}{}
-Table~\ref{tab:blocka} covers all 50 sampled questions per dataset, or 45 turns in 15
-conversations for ConvFinQA. D scores at least as high as O on all six datasets, by 0
-to 11.3 points. The interval excludes zero only on TAT-QA (+11.3, [+4.1, +19.9]).
-MultiHiertt (+9.8) and FinQA (+2.0) reach zero at their lower bound, and the other
-three include it. With six uncorrected comparisons, only the TAT-QA gain is
-individually convincing. Taken together, the answers follow the coverage audit: gains
-are largest on hierarchical tables and on documents much larger than the budget, and
-absent on ConvFinQA, whose documents nearly fit. Length-matched packing is lowest on
-four datasets but highest on FinQA, so on FinQA's short documents nearby text works
-as well as structure.
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{2.4pt}
-\input{generated/block_a.tex}
-\caption{Block A: paired answer scores (\%). All sampled questions; abstained and
-rejected answers score zero. Official execution accuracy for FinQA and ConvFinQA,
-official F1 otherwise.}
-\label{tab:blocka}
-\end{table}
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{2.4pt}
-\input{generated/block_a_status.tex}
-\caption{Block A answer status (\%), over all three methods. ``No program'' answers
-are valid but have no official FinQA program, so they score zero officially.}
-\label{tab:blockastatus}
-\end{table}
-
-\subsection{Does the executor help?}
-\label{sec:executor}
-Table~\ref{tab:blockb} shows no consistent accuracy gain. Direct answering is ahead
-on HybridQA by 16.4 points, with an interval excluding zero. This is plausible, since
-HybridQA answers are short text spans with no arithmetic to delegate, and requiring
-verbatim quotes encourages spans longer than the gold answer.
-
-The executor's apparent 22.1-point lead on MultiHiertt does not survive scrutiny.
-Direct answers often give the same value in percentage form ($-29.92$ for a gold
-$-0.2992$), which the official span path scores as wrong, while programs use a
-different path. Applying the Block B relaxed rule to numeric answers on both sides
-gives 68.8 against 62.5, a difference of +6.2 with interval [$-$6.2, +20.0]. Direct
-answering gains 9 answers from this and the executor 2. We therefore do not claim an
-executor gain there. The executor's defensible value is auditability: every answer
-traces to specific evidence, and unsupported numbers are rejected.
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{2.4pt}
-\input{generated/block_b.tex}
-\caption{Block B: executor against direct answering on the same evidence (\%). F1,
-except the auxiliary numeric measure for FinQA and ConvFinQA. The MultiHiertt row is
-official F1; the like-for-like difference is +6.2, as explained in the text.}
-\label{tab:blockb}
-\end{table}
-
-\subsection{Failure analysis}
-The earlier pipeline was reported to reach 2 of 883 FinQA development questions with
-a local quantised model, with about 90\% of outputs failing validation; those raw
-outputs are not available to us, so we cite this only as recorded. Both the model
-and the output format changed, so the improvement cannot be credited to the format
-alone. Table~\ref{tab:errors} classifies every uncredited executor answer in Block B.
-Validation failures are now rare, and most errors are real reasoning mistakes.
-Numeric datasets mainly fail through wrong values, such as reversed percentage-change
-directions. HybridQA and TAT-QA mainly fail through wrong or over-long spans.
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{2.4pt}
-\input{generated/errors.tex}
-\caption{Block B uncredited executor answers by cause, counted against the primary
-official measure (execution accuracy for FinQA and ConvFinQA, full F1 otherwise):
-wrong value (Val), wrong sign, wrong span or text (Span), value not in evidence
-(Grnd), abstained (Abst), other.}
-\label{tab:errors}
-\end{table}
-
-\section{Big Data preparation}
-Spark prepares partitioned Parquet tables of documents, questions and facts, explodes
-dependency edges, checks that all edges resolve, and computes exact content overlap.
-Deduplicating repeated contexts keeps each fact stored once. A Python implementation
-computes the same results, and the job fails unless Spark matches it exactly.
-\IfFileExists{generated/spark_note.tex}{\input{generated/spark_note.tex}}{Spark timing results are pending.}
-\IfFileExists{generated/spark.tex}{
-\begin{table}[t]
-\centering\small\setlength{\tabcolsep}{2.4pt}
-\input{generated/spark.tex}
-\caption{Wall time in seconds for the same joins and checks in single-process Python
-and in Spark at 1, 2, 4 and 8 cores. Size is records read per source dataset (100,
-1,000, or the full split). All runs equal the Python reference. Peak GB is sampled
-process-tree memory.}
-\label{tab:spark}
-\end{table}}{}
-These are single-machine results and are not a distributed-cluster scalability claim.
-
-\section{Conclusion}
-Keeping each fact's labels with it when evidence must be cut preserves more of the
-evidence a question needs. The effect is clear in a full-split audit and largest where
-documents far exceed the budget. At the answer level the direction agrees on all six
-datasets, but free-tier sample sizes make most single gains uncertain. Two further
-findings came from checking our own pipeline. The earlier offset-based pipeline failed
-almost completely, and the copy-and-resolve format replaced it; because the model also
-changed, we do not credit the format alone. An arithmetic executor gives auditability
-without a reliable accuracy gain.
-
-\section{Reproducibility}
-Each run has a frozen contract holding question IDs, seeds, source and input hashes,
-prompts, schemas, settings and source-code hashes. A SQLite ledger stores every raw
-response, so scoring and re-parsing need no further model calls. Run manifests record
-the resolved model. Official evaluators are fetched at pinned commits, and all report
-tables are generated from saved outputs by a single script.
+\subsection{Executor against direct answering}
+With Gemini 3.1 Flash-Lite, the executor gives no consistent gain
+(Table~\ref{tab:blockb}). Direct answering leads on HybridQA by 16.4 points, with an
+interval excluding zero; its answers are short text spans with no arithmetic. The
+executor's 22.1-point lead on MultiHiertt is a scoring artefact: direct answers write
+percentages ($-29.92$ for a gold $-0.2992$), which the official span path marks wrong.
+Under one numeric rule for both sides the difference is +6.2 [$-6.2$, +20.0], so we
+make no claim. The executor's value is that every answer traces to specific evidence.
+Most remaining errors are wrong values, such as reversed percentage changes, or wrong
+or over-long spans.
 
 \section{Limitations}
-Samples are small, and intervals are wide. Evidence coverage counts presence, not
-correct use. Headers are inferred and can be wrong. Token budgets are estimates, and
-BM25 misses paraphrases. Hosted model behaviour cannot be fully audited and can change.
-Free-tier quotas limited sample sizes, and a block interrupted by a quota stop resumes
-under final code, with saved answers re-parsed rather than re-requested. Two datasets,
-TAT-HQA and MultiHiertt, were added to the assigned four, and ConvFinQA and HybridQA
-hidden-test labels are unavailable, so we report development results only. No model
-was trained and no novel reasoning architecture is claimed.
+Coverage measures presence, not correct use. Samples of 50 leave most per-dataset answer
+gains within noise. Headers are inferred and can be wrong; budgets are estimated tokens;
+BM25 misses paraphrases. Hosted models can change between runs. ConvFinQA and HybridQA
+test labels are not public, so all results are on development splits.
 
+\section{Conclusion}
+Large tables must fit a model's fixed context window without losing what their numbers
+mean. Writing each label once and linking every number to it keeps more of the evidence
+a question needs at the same budget: on all six datasets at the chosen budgets, most
+where documents exceed the budget, with a measured loss at 200 tokens. Answers from
+Gemini 3.5 Flash-Lite follow, with a significant gain on TAT-QA. PySpark builds and
+verifies the 1.36-million-fact graph the method runs on. Next steps are larger answer
+samples, budget-aware closure that pays for a header only when several packed facts
+share it, and better header inference for nested tables.
+
+\bibliographystyle{IEEEtran}
 \bibliography{references}
-\bibliographystyle{acl_natbib}
 \end{document}

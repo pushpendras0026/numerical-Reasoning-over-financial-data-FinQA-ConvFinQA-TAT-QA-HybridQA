@@ -41,3 +41,10 @@ presentation/video/render*.log
 .review/
 .DS_Store
 presentation/video/*.log
+
+# Unzipped copy of data/ConvFinQA/data.zip, and the third-party reference paper
+data/ConvFinQA/data/
+NUMERICAL REASONING FOR FINANCIAL REPORTS.pdf
+
+# Joined copy of presentation/video/clips/ (regenerate with ffmpeg concat)
+presentation/video/explainer.mp4
