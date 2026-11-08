@@ -1,6 +1,6 @@
 # Presentation script (15 minutes)
 
-Part 1 is the video (`video/explainer.mp4`, 4:48), narrated live by one speaker.
+Part 1 is the video (`video/explainer.mp4`, 4:01), narrated live by one speaker.
 Part 2 is the 10 slides (`slides.pdf`), about one minute each. Speaker A takes slides
 1 to 5 and Speaker B takes slides 6 to 10. Swap the letters for names as you prefer.
 Every number below comes from the measured results in the report.
@@ -9,14 +9,14 @@ Every number below comes from the measured results in the report.
 
 | Scene | Starts | Say |
 |---|---|---|
-| Opening | 0:00 | "A number in a financial report means nothing on its own. Our project is about what happens when a language model is given numbers without the labels that explain them." |
-| What does 637 mean? | 0:17 | "This is a real FinQA table. The question asks for American Express's average payment volume per transaction. The answer is 637 divided by 5.0, but notice what makes that possible: the row label, and two column headers. Remove them and the model is left with two bare numbers. It cannot tell which is the volume and which is the count." |
-| Reading budget | 0:50 | "In practice the model cannot read everything. A HybridQA document has a median of about 8,900 tokens, and we give the model a budget of fifteen hundred. So a system must decide which facts go in. Our question is whether the labels go in with them." |
-| Pipeline | 1:19 | "Here is the pipeline, shared across all six datasets. A reader turns each dataset into facts, each one remembering which other facts explain it. BM25 ranks them, packing fills the budget, the model answers once, and its answer is checked and executed before the official scorer marks it. Packing is the only thing we change. Gold labels join only at scoring; we checked 443 prompts and none contained one." |
-| Three packing methods | 1:53 | "Same budget, three ways to fill it. Ordinary packing repeats the labels inside every cell; that is a fair baseline, not a weakened one. Dependency packing follows each fact to its headers, units, hierarchy and links, and keeps each of them once, with the table structure. Length-matched packing adds neighbouring text up to the same length, to test whether more text alone is enough." |
-| Literal grounding | 2:49 | "The model writes a small program and copies its numbers. Our code finds each number in the evidence. If a number appears nowhere, like 640 here, the answer is rejected. The earlier version asked for character positions instead and answered only 2 of 883 FinQA questions, though that run also used a different model." |
-| Result | 3:30 | "And the main result. On all 3,466 HybridQA questions, dependency packing keeps more of the needed evidence at every budget: at 1,500 tokens, 146 questions are kept only by dependency packing and 7 only by ordinary. That holds on all six datasets at the chosen budgets, and the gap closes as the budget grows." |
-| Closing | 4:19 | "So: keep the labels with the facts, especially when the budget is tight. Now let us show you how we tested this, and how far the answers follow." |
+| Opening | 0:00 | (Title card: stay silent until the quote appears, about 6 s.) "A number in a financial report means nothing on its own. Our project is about what happens when a language model is given numbers without the labels that explain them." |
+| What does 637 mean? | 0:22 | "This is a real FinQA table. The question asks for American Express's average payment volume per transaction. The answer is 637 divided by 5.0, but notice what makes that possible: the row label, and two column headers. Remove them and the model is left with two bare numbers. It cannot tell which is the volume and which is the count." |
+| Reading budget | 0:52 | "In practice the model cannot read everything. A HybridQA document has a median of about 8,900 tokens, and we give the model a budget of fifteen hundred. So a system must decide which facts go in. Our question is whether the labels go in with them." |
+| Pipeline | 1:16 | "Here is the pipeline, shared across all six datasets. A reader turns each dataset into facts, each one remembering which other facts explain it. BM25 ranks them, packing fills the budget, the model answers once, and its answer is checked and executed before the official scorer marks it. Packing is the only thing we change. Gold answers join only at scoring; we checked 443 saved prompts and none contained one." |
+| Three packing methods | 1:50 | "Same budget, three ways to fill it. Ordinary packing repeats the labels inside every cell; that is a fair baseline, not a weakened one. Dependency packing follows each fact to its headers, units, hierarchy and links, and keeps each of them once, with the table structure. Length-matched packing adds neighbouring text up to the same length, to test whether more text alone is enough." |
+| Literal grounding | 2:21 | "The model writes a small program and copies its numbers. Our code finds each number in the evidence. Both are there, so the program runs: 637 divided by 5.0 is 127.4. If a number appears nowhere, like 640 here, the answer is rejected. The earlier version asked for character positions instead and answered only 2 of 883 FinQA questions, though that run also used a different model." |
+| Result | 2:58 | "And the main result. On all 3,466 HybridQA questions, dependency packing keeps more of the needed evidence at every budget. At 1,500 tokens, 146 questions are kept only by dependency packing and 7 only by ordinary. Across all six datasets, dependency packing is ahead at each dataset's chosen budget: about four points on HybridQA and MultiHiertt, under one point on FinQA and ConvFinQA. At the smallest budget, two hundred tokens, the extra structure costs coverage on ConvFinQA and MultiHiertt. And at four thousand tokens the gap is zero on the four smaller datasets." |
+| Closing | 3:45 | "So: keep the labels with the facts, most of all when documents are much larger than the budget. Now let us show you how we tested this, and how far the answers follow." |
 
 ## Part 2: slides
 

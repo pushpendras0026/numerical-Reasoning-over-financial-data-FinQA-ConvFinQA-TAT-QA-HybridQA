@@ -40,3 +40,4 @@ presentation/video/render*.log
 # Review scratch and macOS metadata
 .review/
 .DS_Store
+presentation/video/*.log

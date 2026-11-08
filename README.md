@@ -43,13 +43,20 @@ measure for FinQA and ConvFinQA, whose direct answers have no program.
   wins on HybridQA. MultiHiertt's +22.1 is a scoring artefact: under one rule for both
   sides it is +6.2 (−6.2, +20.0), see `scripts/multihiertt_sensitivity.py`.
 - **Spark** (4.3.0): 1,360,644 facts and 1,884,748 edges, 0 unresolved,
-  equal to the Python reference on every run. Python takes 16 s for the same
-  work and Spark 37 s at best, so its value at this size is the checked
+  equal to the Python reference on every run. Python takes 15.8 s for the same
+  work and Spark 37.0 s at best, so its value at this size is the checked
   Parquet store, not speed.
-- **Tests**: 80 run, all pass, 1 skipped (MultiHiertt train is a Git LFS pointer).
+- **Tests**: 80 run, all pass, 1 skipped (MultiHiertt train is a Git LFS pointer):
+  `PYTHONPATH=src .venv/bin/python -m unittest discover -s tests`.
 
-Presentation material is in `presentation/`: `slides.pdf` (10 slides),
-`video/explainer.mp4` (4:48, source `video/explainer.py`) and `speaker_notes.md`.
+## Deliverables
+
+| Deliverable | File |
+|---|---|
+| Report (6 pages) | [`report/main.pdf`](report/main.pdf), source `report/main.tex` |
+| Slides (10) | [`presentation/slides.pdf`](presentation/slides.pdf), source `presentation/slides.tex` |
+| Explainer video (4:01, 1080p) | [`presentation/video/explainer.mp4`](presentation/video/explainer.mp4), source `presentation/video/explainer.py` |
+| Presentation script | [`presentation/speaker_notes.md`](presentation/speaker_notes.md): live video narration and slide notes |
 
 ## Setup
 
@@ -72,6 +79,9 @@ scripts/run_v11.sh b gemini-3.1-flash-lite b_grounded,b_direct finqa tatqa tathq
 scripts/run_spark.sh 100 1000 full
 PYTHONPATH=src:scripts .venv/bin/python scripts/error_analysis.py artifacts/v11/b b_grounded dependency
 PYTHONPATH=src:scripts .venv/bin/python scripts/report_tables.py
+.venv/bin/python scripts/document_sizes.py             # median document sizes (video)
+(cd report && make)                                    # report PDF, tectonic
+(cd presentation/video && manim -qh explainer.py Explainer)   # times scenes from speaker_notes.md
 ```
 
 Free-tier quota for `gemini-3.5-flash-lite` is 500 requests per day. Runs stop at the
