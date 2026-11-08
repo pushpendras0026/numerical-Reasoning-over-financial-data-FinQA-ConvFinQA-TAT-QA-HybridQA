@@ -1,0 +1,22 @@
+{
+  "ablation": "none",
+  "answering": "grounded",
+  "dataset": "finqa",
+  "evidence_cap": 800,
+  "generation_attempts": 3,
+  "max_generation_calls": 100000,
+  "model": "gemini-3.5-flash-lite",
+  "provider": "gemini",
+  "response_timeout_seconds": 90,
+  "sample_size": 50,
+  "seed": 2626,
+  "selection": "subset",
+  "source": "data/FinQA/dev.json",
+  "spending_ceiling_usd": 0,
+  "split": "dev",
+  "variants": [
+    "ordinary",
+    "dependency",
+    "length_matched"
+  ]
+}

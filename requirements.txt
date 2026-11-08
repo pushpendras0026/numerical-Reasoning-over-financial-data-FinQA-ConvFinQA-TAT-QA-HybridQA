@@ -1,6 +1,12 @@
-# Optional utilities for result plots and resource measurements.
-matplotlib==3.11.1
-psutil==7.2.2
+# Official evaluators
+numpy==2.5.4
+pandas==3.1.1
+scipy==1.18.1
+six==1.17.0
+sympy==1.14.0
+tqdm==4.70.1
 
-# Optional Spark-backed data preparation (Python 3.12 environment used locally).
-pyspark==3.5.3
+# Figures, resource measurement and Spark preparation (Spark needs Java 17)
+matplotlib==3.11.2
+psutil==7.2.2
+pyspark==4.3.0

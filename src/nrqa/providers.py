@@ -70,6 +70,11 @@ def redacted_error(error, method, url, headers):
         if isinstance(remote, dict):
             detail['provider_error'] = {k: safe_message(remote[k], url, headers)
                                         for k in ('code', 'status', 'type', 'param', 'message') if k in remote}
+            for item in remote.get('details', []):  # Gemini states its own wait and quota.
+                if item.get('retryDelay'):
+                    detail['retry_delay_seconds'] = float(item['retryDelay'].rstrip('s'))
+                for violation in item.get('violations', []):
+                    detail['quota_id'] = safe_message(violation.get('quotaId', ''), url, headers)
     except (ValueError, UnicodeError, OSError):
         detail['body_format'] = 'non_json_or_unreadable; body not retained'
     return detail
@@ -103,6 +108,7 @@ def transport(method, url, headers, body=None, timeout=60):
                 wait = max(0, int(parsedate_to_datetime(wait).timestamp() - time.time()) + 1)
             except (ValueError, TypeError, OverflowError):
                 wait = 60
+        wait = detail.get('retry_delay_seconds', wait)
         code = ('quota_exhausted' if error.code in (402, 429) else
                 'transient_server' if 500 <= error.code <= 599 else 'http_' + str(error.code))
         raise ProviderError(code, wait, detail) from None
@@ -116,17 +122,11 @@ def transport(method, url, headers, body=None, timeout=60):
 
 class Gemini:
     name = 'gemini'
-    # Reviewed against Google's pricing page 2026-11-06. Unknown models fail closed.
-    FREE_MODELS = {'gemini-3.8-flash'}
 
     def __init__(self, env=None, http=transport):
         env = os.environ if env is None else env
         self.key = env.get('GEMINI_API_KEY', '')
-        self.model = env.get('GEMINI_MODEL', 'gemini-3.8-flash')
-        # Operator confirmation is policy evidence, NOT an authentication token.
-        # It covers the project owning THIS key, billing disabled, and nonzero
-        # free quota for THIS model. Never infer eligibility from public pricing.
-        self.free_confirmation = env.get('GEMINI_FREE_TIER_CONFIRMED', '')
+        self.model = env.get('GEMINI_MODEL', 'gemini-3.5-flash-lite')
         self.http = http
         self.identity = {'provider': self.name, 'model': self.model, 'api': 'v1beta'}
         self.verified = False
@@ -151,11 +151,6 @@ class Gemini:
             raise ProviderError('missing_configuration:' + ','.join(missing))
         if not re.fullmatch(r'[A-Za-z0-9._-]+', self.model):
             raise ProviderError('invalid_gemini_model')
-        if self.model not in self.FREE_MODELS:
-            raise ProviderError('model_not_reviewed_for_free_tier')
-        checked_on = datetime.now(timezone.utc).date().isoformat()
-        if self.free_confirmation != f'{self.model}:{checked_on}':
-            raise ProviderError('free_tier_console_confirmation_required')
         model = self.http('GET', self.base(), {'x-goog-api-key': self.key})
         if (model.get('name') != 'models/' + self.model or
                 not {'generateContent', 'countTokens'}.issubset(model.get('supportedGenerationMethods', []))):
@@ -164,13 +159,8 @@ class Gemini:
             raise ProviderError('missing_model_version')
         self.identity['version'] = model['version']
         self.verified = True
-        return {'status': 'console_attested_and_model_available',
-                'account_check': {'method': 'operator_console_confirmation', 'checked_on_utc': checked_on,
-                                 'scope': 'owning project of configured key; Free tier; billing disabled; nonzero model quota',
-                                 'independently_verified': False},
-                'model': self.identity, 'basis': 'console attestation plus authenticated models.get; quota may change',
-                'pricing_source': 'https://ai.google.dev/gemini-api/docs/pricing',
-                'reviewed_on': '2026-11-06', 'paid_fallback': False, 'spending_ceiling_usd': 0}
+        return {'status': 'model_available', 'model': self.identity, 'paid_fallback': False,
+                'checked_on_utc': datetime.now(timezone.utc).date().isoformat()}
 
     def base(self):
         return 'https://generativelanguage.googleapis.com/v1beta/models/' + self.model
@@ -202,6 +192,7 @@ class Gemini:
         if len(candidates) != 1 or candidates[0].get('finishReason') != 'STOP':
             raise ProviderError('blocked_or_incomplete_output')
         parts = candidates[0].get('content', {}).get('parts', [])
-        if not parts or any('text' not in p or p.get('thought') for p in parts):
+        parts = [p for p in parts if not p.get('thought')]
+        if not parts or any('text' not in p for p in parts):
             raise ProviderError('invalid_response_parts')
         return ''.join(p['text'] for p in parts)

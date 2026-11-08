@@ -15,5 +15,5 @@
   "sample_size": 20,
   "dataset": "tatqa",
   "split": "dev",
-  "source": "../TAT-QA/dataset_raw/tatqa_dataset_dev.json"
+  "source": "data/TAT-QA/tatqa_dataset_dev.json"
 }

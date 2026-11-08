@@ -9,12 +9,12 @@ from pathlib import Path
 import random
 import sys
 import time
-from .core import canonical,pack_method,EvidenceFact
+from .core import canonical,pack_method,EvidenceFact,VisibleTokens
 from .datasets import read,VERSIONS
 from .data_paths import source_path,corpus_path
-from .model import request,cache_key,INSTRUCTIONS,SCHEMA,SETTINGS,DIRECT_SCHEMA,DIRECT_INSTRUCTIONS
+from .model import request,cache_key,INSTRUCTIONS,SCHEMA,SETTINGS
 from . import grounded
-from .runner import Ledger,ProviderCounter,StopRun
+from .runner import Ledger,StopRun
 from .providers import Gemini,ProviderError,transport
 from .openai_provider import OpenAI,local_environment,SETTINGS as OPENAI_SETTINGS
 from .ollama_provider import Ollama, SETTINGS as OLLAMA_SETTINGS
@@ -32,7 +32,7 @@ def digest(path):return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def code_hashes():
-    return {str(p.relative_to(ROOT)):digest(p) for root in ('src','scripts') for p in sorted((ROOT/root).rglob('*.py'))}
+    return {str(p.relative_to(ROOT)):digest(p) for root in ('src',) for p in sorted((ROOT/root).rglob('*.py'))}
 
 
 def load_examples(config):
@@ -80,7 +80,7 @@ def freeze(config_path,out):
             if e.document['conversation_id'] in {x.document['conversation_id'] for x in chosen} and e.id not in wanted:raise ValueError('Select complete conversations')
     frozen={'config':config,'ids':[e.id for e in chosen],'source_sha256':digest(source_path(config)),
             'input_hashes':{e.id:cache_key(asdict(e)) for e in chosen},'revision':VERSIONS[config['dataset']],
-            'instructions':grounded.INSTRUCTIONS if config.get('answering')=='grounded' else DIRECT_INSTRUCTIONS if config.get('answering')=='direct' else INSTRUCTIONS,'schema':grounded.SCHEMA if config.get('answering')=='grounded' else DIRECT_SCHEMA if config.get('answering')=='direct' else SCHEMA,'code_hashes':code_hashes(),
+            'instructions':grounded.INSTRUCTIONS if config.get('answering')=='grounded' else grounded.DIRECT_INSTRUCTIONS if config.get('answering')=='direct' else INSTRUCTIONS,'schema':grounded.SCHEMA if config.get('answering')=='grounded' else grounded.DIRECT_SCHEMA if config.get('answering')=='direct' else SCHEMA,'code_hashes':code_hashes(),
             'settings':SETTINGS if config['provider']=='gemini' else OLLAMA_SETTINGS if config['provider']=='ollama' else OPENAI_SETTINGS,
             'selection_unit':'whole conversations' if config['dataset']=='convfinqa' else 'questions'}
     frozen['contract']=cache_key(frozen)
@@ -173,13 +173,12 @@ def run(frozen_path,out,mode,provider_factory=None):
             for variant in config['variants']:
                 group=e.document.get('conversation_id',e.document.get('filename',e.document['id']));history=histories.setdefault((group,variant),[]) if e.dataset=='convfinqa' else []
                 current=altered(e,config.get('ablation','none'),history)
-                bundle=pack_method(current,variant,config['evidence_cap'],ProviderCounter(ledger));bundle['question']=e.question
-                req=(grounded.request if config.get('answering')=='grounded' else request)(e.question,bundle,dict(provider.identity),frozen['settings'])
+                bundle=pack_method(current,variant,config['evidence_cap'],VisibleTokens());bundle['question']=e.question
+                req=(grounded.request if config.get('answering') in ('grounded','direct') else request)(e.question,bundle,dict(provider.identity),frozen['settings'])
                 req['instructions']=frozen['instructions'];req['schema']=frozen['schema']
-                if config.get('ablation')=='no_overlay':
+                if config.get('ablation')=='no_overlay' and config.get('answering','program')=='program':
                     req['schema']=json.loads(canonical(req['schema']));req['schema']['properties'].pop('changes');req['instructions']+='\\nHypothetical changes are disabled in this diagnostic.'
-                entry={'id':e.id,'variant':variant,'group':group,'turn':e.document.get('turn'),'packing':bundle,'request':req,
-                       'input_text_tokens':ledger.count(canonical(req['input']))}
+                entry={'id':e.id,'variant':variant,'group':group,'turn':e.document.get('turn'),'packing':bundle,'request':req}
                 write(out/'current_input.json',entry)
                 prediction=ledger.predict(req,bundle);entry['prediction']=prediction
                 if prediction.get('resolved_model'):resolved.add(prediction['resolved_model'])
@@ -188,8 +187,8 @@ def run(frozen_path,out,mode,provider_factory=None):
                 execution=prediction.get('execution',{'status':'api_failure'})
                 program=convert_output(config['dataset'],e.id,execution).get('predicted') if config['dataset']=='convfinqa' else None
                 history.append({'question':e.question,'execution':execution,'program_tokens':program,
-                                'evidence_ids':[f['id'] for f in bundle['facts'] if f['kind'] not in ('history',)]})
-                if prediction['status']=='failed':raise StopRun(prediction.get('error','api_failure'),prediction.get('error_details'))
+                                'evidence_ids':grounded.cited_facts(execution)})
+                if prediction['status']=='failed' and str(prediction.get('error','')).startswith('http_4'):raise StopRun(prediction['error'],prediction.get('error_details'))
     except (StopRun,ProviderError,KeyboardInterrupt) as error:
         manifest.update(status='stopped',error=str(error),error_details=getattr(error,'details',{}))
     finally:
@@ -205,7 +204,7 @@ def run(frozen_path,out,mode,provider_factory=None):
     return manifest
 
 
-def evaluate(frozen_path,out,repositories=ROOT.parent):
+def evaluate(frozen_path,out,repositories=ROOT/'third_party'):
     frozen=json.loads(Path(frozen_path).read_text());examples,refs=selected(frozen);out=Path(out)
     manifest=json.loads((out/'manifest.json').read_text())
     if manifest['contract']!=frozen['contract']:raise ValueError('Run contract mismatch')

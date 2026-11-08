@@ -1,0 +1,20 @@
+{
+  "ablation": "none",
+  "answering": "grounded",
+  "dataset": "hybridqa",
+  "evidence_cap": 1500,
+  "generation_attempts": 3,
+  "max_generation_calls": 100000,
+  "model": "gemini-3.1-flash-lite",
+  "provider": "gemini",
+  "response_timeout_seconds": 90,
+  "sample_size": 40,
+  "seed": 2626,
+  "selection": "subset",
+  "source": "data/HybridQA/dev.json",
+  "spending_ceiling_usd": 0,
+  "split": "dev",
+  "variants": [
+    "dependency"
+  ]
+}

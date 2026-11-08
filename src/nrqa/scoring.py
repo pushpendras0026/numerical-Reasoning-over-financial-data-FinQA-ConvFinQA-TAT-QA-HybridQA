@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 from .core import canonical
-from .execute import number
+from .execute import number,NUMBER
 from .evaluation import check_coverage
 
 REPOS={'finqa':'FinQA','convfinqa':'ConvFinQA','tatqa':'TAT-QA','tathqa':'TAT-HQA','hybridqa':'HybridQA','multihiertt':'MultiHiertt'}
@@ -15,10 +15,18 @@ def convert_output(dataset,qid,result):
     ok=result.get('status')=='ok';answer=result.get('answer','') if ok else '';tokens=result.get('tokens') if ok else None
     if dataset in ('finqa','convfinqa'):
         if dataset=='convfinqa' and ok and not tokens and isinstance(answer,str):
-            try:number(answer);tokens=[answer.replace(',','').strip(),'EOF']
-            except Exception:pass
+            # A single-number turn is a valid official program; keep only the number.
+            match=NUMBER.search(answer.replace('$',''))
+            if match:tokens=[match.group().replace(',','').replace(' ','').strip(),'EOF']
         return {'id':qid,'predicted':tokens or ['EOF']}
-    if dataset in ('tatqa','tathqa'):return {qid:[answer,result.get('scale','') if ok else '']}
+    if dataset in ('tatqa','tathqa'):
+        scale=result.get('scale','') if ok else ''
+        if isinstance(answer,str) and ' | ' in answer:answer=[a.strip() for a in answer.split(' | ')]
+        if scale=='percent_fraction':  # TAT labels hold percentage points; the plan holds a fraction.
+            try:answer=str(number(str(answer))*100)
+            except Exception:pass
+            scale='percent'
+        return {qid:[answer,scale]}
     if dataset=='hybridqa':return {'question_id':qid,'pred':str(answer) if not isinstance(answer,list) else ' '.join(answer)}
     if dataset=='multihiertt':
         program=tokens if tokens and tokens!=['EOF'] else []

@@ -100,10 +100,10 @@ class OfficialContracts(unittest.TestCase):
         for name,(labels,result) in cases.items():
             ex=PredictionExample(name,'fixture','train','fixture','q',{'table':[]},())
             with tempfile.TemporaryDirectory() as tmp:
-                scores=official_score(name,[ex],[ReferenceRecord('fixture',labels)],{'fixture':result},tmp,ROOT.parent)
+                scores=official_score(name,[ex],[ReferenceRecord('fixture',labels)],{'fixture':result},tmp,ROOT/'third_party')
                 metric='execution' if name in ('finqa','convfinqa') else 'em'
                 self.assertEqual(scores['metrics'][metric],1,name)
-                scores=official_score(name,[ex],[ReferenceRecord('fixture',labels)],{'fixture':{'status':'abstain'}},tmp,ROOT.parent)
+                scores=official_score(name,[ex],[ReferenceRecord('fixture',labels)],{'fixture':{'status':'abstain'}},tmp,ROOT/'third_party')
                 self.assertEqual(scores['metrics'][metric],0,name)
                 self.assertEqual(scores['denominator'],1)
 
@@ -127,7 +127,7 @@ class Boundaries(unittest.TestCase):
         from nrqa.core import ReferenceRecord
         ex=PredictionExample('convfinqa','fixture','test','conversation_0','q',{'table':[]},())
         with tempfile.TemporaryDirectory() as tmp:
-            score=official_score('convfinqa',[ex],[ReferenceRecord(ex.id,{})],{ex.id:{'status':'ok','answer':'5','tokens':None}},tmp,ROOT.parent)
+            score=official_score('convfinqa',[ex],[ReferenceRecord(ex.id,{})],{ex.id:{'status':'ok','answer':'5','tokens':None}},tmp,ROOT/'third_party')
             self.assertEqual(score['status'],'hidden_labels');self.assertTrue(score['submission_exported'])
             self.assertEqual(json.loads((Path(tmp)/'official_predictions.json').read_text()),[{'id':ex.id,'predicted':['5','EOF']}])
     def test_complete_table_row_official_export_and_partial_rejection(self):
@@ -150,7 +150,7 @@ class Boundaries(unittest.TestCase):
             result=parse_and_execute(canonical(plan),bundle)[1]
             self.assertEqual(result['answer'],'25');self.assertEqual(result['tokens'],['table_sum(','Revenue','none',')','EOF'])
             from nrqa.evaluation import load_official
-            official=load_official(ROOT.parent/'FinQA/code/evaluate/evaluate.py')
+            official=load_official(ROOT/'third_party/FinQA/code/evaluate/evaluate.py')
             self.assertEqual(official.eval_program(result['tokens'],raw['table']),(0,25.))
             plan['operands']=spans[:1];self.assertEqual(parse_and_execute(canonical(plan),bundle)[1]['status'],'invalid')
     def test_oversized_history_program_is_rejected(self):

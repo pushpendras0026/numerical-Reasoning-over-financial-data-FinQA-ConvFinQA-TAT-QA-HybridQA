@@ -38,13 +38,13 @@ class ExperimentContract(unittest.TestCase):
     def test_direct_diagnostic_and_disabled_overlay(self):
         from nrqa.experiment import Mock
         class DirectMock(Mock):
-            def generate(self,request):return {'model':'abstention-fixture','text':json.dumps({'kind':'direct','answer':'10','scale':''})}
+            def generate(self,request):return {'model':'abstention-fixture','text':json.dumps({'reasoning':'','kind':'direct','answer':'10','scale':''})}
         with tempfile.TemporaryDirectory() as tmp:
             tmp=Path(tmp);config=json.loads((ROOT/'experiments/smoke.json').read_text());config['answering']='direct'
             path=tmp/'config.json';path.write_text(json.dumps(config));frozen=tmp/'frozen.json';freeze(path,frozen)
             run(frozen,tmp/'run','mock',DirectMock)
             metrics=evaluate(frozen,tmp/'run')
-            self.assertEqual(set(metrics['ordinary']['metrics']),{'direct_numeric_auxiliary'})
+            self.assertEqual(set(metrics['ordinary']['metrics']),{'relaxed_numeric'})
     def test_model_pins_survive_preflight_stop(self):
         from nrqa.experiment import Mock
         from nrqa.providers import ProviderError
@@ -58,7 +58,7 @@ class ExperimentContract(unittest.TestCase):
             resumed=run(frozen,out,'mock');self.assertEqual(resumed['new_calls'],0)
     def test_repeated_contexts_are_not_new_documents(self):
         import copy
-        source=json.loads((ROOT.parent/'FinQA/dataset/train.json').read_text())[0]
+        source=json.loads((ROOT/'third_party/FinQA/dataset/train.json').read_text())[0]
         second=copy.deepcopy(source);second['id']='same-context-new-question';second['qa']['question']='Another question about this context?'
         with tempfile.TemporaryDirectory() as tmp:
             tmp=Path(tmp);data=tmp/'data.json';data.write_text(json.dumps([source,second]))

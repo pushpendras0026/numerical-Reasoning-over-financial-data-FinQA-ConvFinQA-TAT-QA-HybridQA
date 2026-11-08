@@ -107,23 +107,22 @@ class Diagnostics(unittest.TestCase):
                     ledger.sleep = lambda _: None
                 with patch.object(Ledger, '__init__', init):
                     result = run(frozen, tmp/'run', 'mock', lambda: provider)
-            self.assertEqual(provider.calls, 2)
-            self.assertEqual(result['model_calls'], 2)
+            self.assertEqual(provider.calls, 3)
+            self.assertEqual(result['model_calls'], 3)
             self.assertEqual(result['completed_requests'], 0)
             self.assertEqual(result['successful_requests'], 0)
             self.assertEqual(result['failed_requests'], 0)
             self.assertEqual(result['uncertain_requests'], 1)
             detail = result['error_details']
-            self.assertEqual(detail['attempt_number'], 2)
+            self.assertEqual(detail['attempt_number'], 3)
             self.assertEqual(detail['stage'], 'connection_or_response_headers_unknown')
             ledger = Ledger(tmp/'run/cache.sqlite', provider)
             record = ledger.get(detail['logical_request_id'])
             self.assertNotIn('raw_response', record)
-            self.assertEqual([a['attempt_number'] for a in record['attempts']], [1, 2])
-            with self.assertRaises(StopRun) as ctx:
-                ledger.predict(record['request'], {})
-            self.assertEqual(ctx.exception.details, detail)
-            self.assertEqual(provider.calls, 2)
+            self.assertEqual([a['attempt_number'] for a in record['attempts']], [1, 2, 3])
+            # Attempts are spent, so a resume records the failure without resending.
+            self.assertEqual(ledger.predict(record['request'], {})['status'], 'failed')
+            self.assertEqual(provider.calls, 3)
             ledger.close()
 
     def test_terminal_http_error_reaches_manifest(self):

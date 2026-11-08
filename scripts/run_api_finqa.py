@@ -12,7 +12,7 @@ from nrqa.runner import Ledger, ProviderCounter, StopRun
 from nrqa.evaluation import score
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT.parent / 'FinQA/dataset/dev.json'
+SOURCE = ROOT / 'data/FinQA/dev.json'
 CONFIG = ROOT / 'experiments/finqa_api_smoke.json'
 
 
@@ -129,7 +129,7 @@ def main(provider_factory=Gemini, argv=None, settings=None, default_out=None):
         name = f'official_predictions_{variant}.json'
         write(out, name, predictions)
         metrics[variant] = score(predictions, config['ids'], out / name,
-                                 out / 'official_references.json', ROOT.parent / 'FinQA/code/evaluate/evaluate.py')
+                                 out / 'official_references.json', ROOT / 'third_party/FinQA/code/evaluate/evaluate.py')
         metrics[variant]['label'] = ('MOCK abstention fixtures; NOT model results' if mock else
                                     'model predictions; three dev questions only')
         metrics[variant]['failures'] = sum(e['prediction'].get('execution', {}).get('status') != 'ok' for e in entries)

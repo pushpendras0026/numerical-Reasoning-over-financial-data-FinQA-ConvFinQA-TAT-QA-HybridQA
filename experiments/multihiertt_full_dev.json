@@ -15,5 +15,5 @@
   "sample_size": 20,
   "dataset": "multihiertt",
   "split": "dev",
-  "source": "../MultiHiertt_data/multihiertt_data/dev.json"
+  "source": "data/MultiHiertt/dev.json"
 }

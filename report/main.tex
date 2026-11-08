@@ -1,4 +1,3 @@
-\pdfoutput=1
 \documentclass[11pt]{article}
 \usepackage{acl2023}
 \usepackage{times,latexsym}
@@ -7,27 +6,25 @@
 \usepackage{microtype}
 \usepackage{graphicx}
 \title{Dependency-Preserving Evidence Packing for Numerical Question Answering}
-\author{Pushpendra Singh \and Badri Bishal Das}
+\author{Pushpendra Singh \and Badri Bishal Das \\ Indian Institute of Technology Guwahati}
 \begin{document}
 \maketitle
 \begin{abstract}
-Financial questions require numbers to remain associated with their headers,
-units, document structure, and source links. We implement a shared answering
-pipeline with dataset-specific adapters and evaluate a controlled comparison of ordinary
-packing, dependency-preserving packing, and length-matched context expansion.
-The model and evidence cap are fixed within each comparison. The implementation
-uses prediction-only readers, deterministic lexical retrieval, validated answer
-plans, bounded numerical execution, and dataset-specific official scoring.
-Full FinQA development evaluation contains 883 questions per method; dependency
-packing yields two officially correct executions while ordinary packing yields none.
-Most original outputs fail execution validation. Training-only diagnostics motivate
-kind-specific schemas and compact instructions. A separately labeled single-operation
-arithmetic ablation is evaluated on 40 development questions each for FinQA,
-TAT-QA and TAT-HQA, plus 141 turns in 40 complete ConvFinQA conversations.
-FinQA is an authorized overlapping rerun; other expanded subsets are disjoint
-from prior selections. Executable coverage improves, but official scores remain
-near zero. MultiHiertt fails the executable training gate and HybridQA lacks
-required evidence. These measurements do not establish reliable packing gains.
+A number in a financial report means little without its row, column, unit and
+source. When evidence must fit a small token budget, does keeping those
+dependencies with each selected fact improve question answering? We build one
+pipeline over six benchmarks and compare ordinary packing, recursive dependency
+packing and a length-matched control at a fixed budget. Over every development
+question (9,268 scored questions) dependency packing retains complete gold
+evidence more often than ordinary packing on all six datasets, by 0.3 to 4.0
+percentage points at the chosen caps, and the advantage disappears on four of the
+datasets when budgets grow. On 50 paired questions per dataset, dependency packing
+scores at least as high as ordinary packing on all six datasets (0 to +11.3 points),
+with an interval excluding zero only on TAT-QA. Answers that copy literal values, resolved locally to evidence spans, replaced an
+earlier pipeline in which almost all outputs failed validation; the model also
+changed, so we do not credit the format alone. An arithmetic executor shows no
+consistent accuracy gain over direct answering, and direct answering is better on
+HybridQA. Spark preparation is checked against a Python reference on every run.
 \end{abstract}
 
 \section{Problem and motivation}
@@ -35,12 +32,15 @@ A value such as ``15'' is difficult to interpret without its year, row label,
 unit, and sometimes an ancestor header. A linked passage may be relevant only
 through the table cell that introduced it. Conversational questions can refer
 to earlier answers, while hypothetical questions change the facts being used.
-Flattening evidence can weaken these relationships even when the correct
-number is present. We ask: with the same model and evidence budget, does
-preserving dependencies between evidence and its headers, units, hierarchy,
-and links improve answer quality compared with ordinary evidence packing?
-We do not assume improvements on every dataset. The intervention may consume
-space needed for other facts, and incorrect inferred headers can hurt.
+Flattening evidence can weaken these relationships even when the correct number
+is present. We ask: with the same model and evidence budget, does preserving
+dependencies between evidence and its headers, units, hierarchy and links improve
+answer quality compared with ordinary evidence packing?
+
+We do not assume improvement on every dataset. The intervention can consume space
+needed for other facts, and incorrectly inferred headers can hurt. The hypothesis
+also predicts its own limit: when a whole document fits the budget, packing has
+nothing to decide, so any gain should shrink as budgets grow.
 
 \section{Related work}
 FinQA introduces program-based numerical reasoning over financial reports
@@ -48,193 +48,262 @@ FinQA introduces program-based numerical reasoning over financial reports
 types \citep{tatqa}. ConvFinQA requires sequential numerical reasoning over
 conversation turns \citep{convfinqa}. HybridQA tests multi-hop reasoning over
 Wikipedia tables and linked passages \citep{hybridqa}; it is a transfer test,
-not a finance-only benchmark. Learning to Imagine introduces hypothetical
-reasoning over financial evidence \citep{tathqa}, and MultiHiertt combines
-hierarchical tables and text with span/program reasoning \citep{multihiertt}.
+not a finance benchmark. Learning to Imagine introduces hypothetical reasoning
+over financial evidence \citep{tathqa}, and MultiHiertt combines hierarchical
+tables and text with span and program reasoning \citep{multihiertt}.
 Program of Thoughts delegates computation to an external interpreter \citep{pot}.
 TAT-LLM uses an extractor--reasoner--executor pipeline \citep{tatllm}. These are
-established approaches. Our contribution is a controlled engineering study of
-deterministic dependency closure at a fixed evidence budget, not a claim that
-retrieval, structured evidence, or executable reasoning is new.
+established approaches. Our contribution is a controlled study of deterministic
+dependency closure at a fixed evidence budget, not a claim that retrieval,
+structured evidence, or executable reasoning is new.
 FINDER combines generative retrieval with dynamically selected in-context
 examples \citep{finder}. FinCARDS uses finance-aware schema alignment and
 tournament reranking to select evidence with audit traces \citep{fincards}.
 These close approaches limit our novelty claim. We instead use deterministic
 lexical ranking and recursive closure of actual header, unit, hierarchy and
-link dependencies, with one model call and the same model/evidence cap across
-methods. Any benefit must survive the neighboring-context length control. The project
-source ledger records further related work and its verified primary links.
+link dependencies, with one model call and the same model and cap across methods.
 
 \section{Datasets and scope}
-All runs use the supplied document context, rather than searching a global
-corpus. Official splits remain separate. Readers preserve raw strings, stable
-identifiers, cell coordinates, original tables, paragraph offsets, and available
-links. TAT-HQA uses its hypothetical subset; label-derived intervention fields
-and related factual answers are excluded. ConvFinQA exposes only questions
-through the current turn and our earlier predicted state. MultiHiertt preserves
-HTML and merged-cell geometry and regenerates context from the HTML rather
-than trusting descriptions of unverified provenance.
+All runs use the supplied document context rather than searching a global corpus.
+Official splits stay separate and official scorers run unchanged in isolated
+processes. Passing gold answers from 200 development questions through the scoring
+path gives 100\% on five datasets. MultiHiertt gives 90.5\% for gold answers sent as
+text, because its span path removes minus signs before comparing numbers. Programs
+use a separate path. Section~\ref{sec:executor} measures what this means for us.
 \begin{table}[t]
 \centering\small\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lll}
-Dataset & Local inputs & Main challenge\\\hline
-FinQA & Available & Arithmetic programs\\
-TAT-QA & Available & Spans, arithmetic, scale\\
-ConvFinQA & Available ZIP & Predicted turn history\\
-HybridQA & Corpus missing & Cell-to-passage links\\
-TAT-HQA & Available & Hypothetical changes\\
-MultiHiertt & Available & HTML hierarchy\\
+\begin{tabular}{lrl}
+Dataset & Dev questions & Main challenge\\\hline
+FinQA & 883 & Arithmetic programs\\
+TAT-QA & 1,668 & Spans, arithmetic, scale\\
+ConvFinQA & 1,490 turns & Predicted turn history\\
+HybridQA & 3,466 & Cell-to-passage links\\
+TAT-HQA & 824 & Hypothetical changes\\
+MultiHiertt & 1,044 & HTML hierarchy\\
 \end{tabular}
-\caption{Input readiness. Available inputs do not imply live model validation.}
+\caption{Development data. HybridQA requires its separate linked corpus of 15,314
+tables, and every development question resolves to a table in it.}
 \end{table}
-TAT-QA's released test-gold version has different IDs from its original public
-test. The former is evaluated using its own inputs and identifiers; position
-joins are forbidden. TAT-HQA's hidden test filename contains ``dev'', but is
-still treated as hidden test. FinQA and ConvFinQA share source documents;
-TAT-QA and TAT-HQA also overlap. We therefore retain per-dataset results and do
-not interpret these as six independent replications. Exact input fingerprints,
-source IDs, question--table hashes, and approximate near-duplicate checks are
-prepared without consulting answers.
+FinQA and ConvFinQA share source documents, as do TAT-QA and TAT-HQA, so these are
+not six independent replications and we never pool them. HybridQA is general
+knowledge, which makes it a test of whether the idea transfers, not of financial
+arithmetic.
 
 \section{Shared architecture}
 \begin{figure}[t]
 \centering
-\fbox{\parbox{.90\columnwidth}{Prediction-only readers $\rightarrow$ lexical retrieval
-$\rightarrow$ evidence packing $\rightarrow$ frozen model $\rightarrow$ validated
-answer plan $\rightarrow$ restricted execution $\rightarrow$ output adapter.
-References join only at the official evaluation stage. Earlier predicted state
-feeds the next conversation turn.}}
-\caption{One reasoning architecture with dataset-specific I/O and evaluation.}
+\fbox{\parbox{.90\columnwidth}{Prediction-only readers $\rightarrow$ BM25 retrieval
+$\rightarrow$ evidence packing $\rightarrow$ model $\rightarrow$ literal grounding
+$\rightarrow$ bounded execution $\rightarrow$ output adapter $\rightarrow$ official
+scorer. References join only at scoring. Earlier predicted state feeds the next
+conversation turn.}}
+\caption{One reasoning architecture with dataset-specific input and scoring.}
 \end{figure}
-The common evidence record stores raw text, provenance, dependency IDs,
-unit/scale metadata, and uncertainty about inferred structure. The final model
-request uses a field allowlist. Answers, gold evidence, derivations, reference
-programs, and future turns never enter retrieval or prompts.
+Each fact stores raw text, provenance and the IDs of the facts needed to interpret
+it. Answers, gold evidence, derivations, reference programs and future turns never
+enter retrieval or prompts. We confirmed this on saved requests: none of 443
+inspected prompts contains a label field, and no prompt contains a FinQA gold program.
 
 \subsection{Retrieval and packing}
-BM25 lexical retrieval ranks cells and paragraphs using the current question,
-available earlier questions, and immediate dependency text. Ties use stable
-IDs. Both primary methods receive readable headers. Ordinary packing inlines
-immediate labels. Dependency-preserving packing recursively closes header,
-unit, ancestor, and link-anchor dependencies and deduplicates shared nodes.
-Candidates are visited in ranked order; a complete bundle is accepted only if
-its serialized evidence fits. Dependency cycles fail validation. Whole facts are
-admitted or dropped; strings are not cut.
-The length-matched control visits a ranked seed and then its immediate source
-neighbors, targeting the dependency method's actual serialized length. It uses
-no graph closure. Whole-fact admission can underfill the target, so we record
-the residual gap. It can produce a different fact mix, and is an imperfect
-control for length alone. Identical candidate order, counting rules, prompt,
-model, and decoding settings are frozen before scoring.
+BM25 ranks cells and paragraphs using the question, earlier questions and immediate
+dependency text, with stable tie-breaking. Candidates are visited in rank order and
+a whole bundle is admitted only if it fits; strings are never cut.
+\begin{description}\itemsep0pt
+\item[Ordinary (O).] Each selected fact carries its structural labels inline. This
+is a deliberately fair baseline, because removing labels would make it trivially weak.
+\item[Dependency (D).] Each selected fact pulls in the recursive closure of its
+headers, units, hierarchy and link anchors, shared once.
+\item[Length-matched (L).] A selected fact is followed by its source neighbours up
+to D's length, without using dependency edges.
+\end{description}
+All methods present evidence in document order and spend budget identically on
+conversation history. Budgets are counted locally on the exact text shown to the
+model, as UTF-8 bytes divided by four. This is an estimate, so actual prompt tokens
+are recorded separately from provider metadata.
 
-\subsection{Answer tools and provenance}
-The shared plan supports extraction, multiple spans, counting distinct spans,
-arithmetic, aggregates, comparison, selection, and temporary hypothetical
-changes grounded in the question. Decimal arithmetic is bounded in magnitude,
-step count and exponent. Arbitrary generated code is never executed. Operands
-must refer to selected evidence, question spans, allowed constants, earlier
-steps, or selected earlier predictions. Known incompatible units are rejected;
-unknown units remain an explicit limitation. Predicted conversational programs
-are expanded locally into cumulative operations without reference intermediates.
-Complete selected table rows also export through the official table-aggregate
-operators; partial rows are rejected. Some valid local answer modes lack an official
-FinQA program representation;
-these are recorded as unsupported exports and retained as failures, without
-fabricating identity operations. Direct-answer diagnostics have no official
-program metric and use an explicitly auxiliary numeric score where necessary.
-
-\subsection{Execution infrastructure}
-Existing Gemini and OpenAI adapters share a durable SQLite ledger. Runs require
-an explicit zero-spend gate and never switch providers automatically. Requests
-record exact provider/model identity, settings, raw and parsed responses, token
-usage, latency and status. Dispatch is committed before a network call. Completed
-responses are reused, including invalid predictions. Ambiguous timeouts and quota
-failures stop for review; transient server retries are bounded. Model drift stops
-paired scoring. Mock and live outputs use separate directories and labels.
-An earlier hosted-provider attempt stopped at token counting with HTTP 404;
-that diagnostic is separate from the local Ollama results reported here.
-The bounded local runs initially failed preflight because the required local
-server URL was absent from the launch environment. Restoring the recorded URL
-resolved that blocker without changing the model or inference contract.
+\subsection{Literal grounding}
+The earlier design asked the model to cite each operand by evidence ID and character
+offsets. We replace this with copying. The model returns a program such as
+\texttt{subtract("100","80"), divide("\#0","80")} or a quoted phrase, and code locates
+each value in the packed evidence or the question. A number found in neither place
+rejects the plan, so the model cannot introduce an unsupported value, and it never
+has to count characters. Plans then run in a bounded decimal interpreter restricted to the official
+operations. There is no self-repair loop: a rejected plan scores zero.
 
 \section{Experimental protocol}
-The frozen smoke contains three predeclared FinQA development questions. A separate
-20-question pilot excludes those IDs and compares all three packers with the same
-local model and a 3000-byte conservative evidence cap. Configurations also prepare per-dataset subsets
-and full splits. Conversations are sampled and evaluated as complete ordered groups,
-so their turn count need not equal 20. Training fixtures are engineering examples;
-final test inputs are separate from prompt development.
-The main outcome is official execution accuracy for FinQA/ConvFinQA and official
-F1 for the remaining datasets, with companion metrics. Missing predictions, invalid
-outputs, abstentions, unsupported exports and API failures stay in the denominator.
-Official metric functions run in isolated processes. Wrappers bypass the TAT-HQA
-CLI's undefined counter and retain metric logic; they preserve raw official-function
-scores and separately force failed outputs to zero. Numeric zero is serialized as
-text for TAT scoring. MultiHiertt's invalid-program flag bug is documented rather
-than used to obtain credit.
-Paired bootstrap intervals resample documents/conversations with a fixed seed.
-The confirmatory contrast is dependency versus ordinary packing. Neighbor expansion,
-direct answers, and component removals are diagnostic. Cross-dataset confidence
-claims must respect shared sources; no naive independent-dataset pooled interval is
-produced. A small pilot cannot establish broad superiority.
+\paragraph{Budgets.} The caps inherited from earlier work do not test the hypothesis:
+at 4,000 tokens four datasets had no truncation in a 40-question sample, so
+methods differed only in layout. We chose each cap from
+document sizes, without labels. For FinQA and ConvFinQA (800) and TAT-QA and TAT-HQA
+(400) it is the largest tested value truncating about 70\% or more of sampled
+documents. HybridQA and MultiHiertt are still 93\% truncated at 4,000, so we used
+1,500 as a judgement call that keeps prompts within a modest size.
+
+\paragraph{Evidence coverage.} A label-only audit after packing, using no model,
+asks whether every gold operand or answer phrase survives, on the full development
+split for each cap. It uses the question as well as the evidence, and treats allowed
+constants as available. It shows that a value is present, not that it is used
+correctly.
+
+\paragraph{Model experiments.} Free-tier limits shape the design: the provider's
+refusal response for \texttt{gemini-3.5-flash-lite} states a limit of 500 requests per day.
+Each comparison stays on one model, and we never compare across models.
+Block A compares O, D and L on \texttt{gemini-3.5-flash-lite}. Block B compares the
+executor with direct answering, both on D evidence, on \texttt{gemini-3.1-flash-lite}.
+Samples are chosen by a fixed seed before any model call, conversations are kept
+whole, and prompts were checked on separate questions rather than the evaluation
+sample. We report official execution accuracy for FinQA and ConvFinQA and official
+F1 elsewhere. Direct answers have no program, so Block B uses a labelled auxiliary
+measure for those two datasets: 1\% relative tolerance, also accepting the fraction
+and percentage forms of one value. Abstained and rejected answers stay in the
+denominator as zero. Intervals are paired bootstrap resamples of whole documents or
+conversations (2,000 resamples, seed 2626). Six comparisons per block are not
+corrected for multiplicity, so single intervals should be read cautiously.
+
+\section{Results}
+\subsection{Evidence coverage}
+Table~\ref{tab:coverage} and Figure~\ref{fig:coverage} are exact counts. At the chosen
+caps D keeps more gold evidence than O on all six datasets. Discordant questions
+favour D strongly on HybridQA (146 to 7) and MultiHiertt (42 to 3), and more mildly
+on TAT-QA and TAT-HQA, where the sign test is still clear. FinQA (9 to 1) is weaker,
+and ConvFinQA (6 to 1) is not significant. The gap is largest where documents are
+much larger than the budget, and it closes as budgets grow: at 4,000 tokens it is
+zero on the four smaller datasets. This is the behaviour the hypothesis predicts.
+The method also shows its measured limit. At the smallest cap (200 tokens) closure
+overhead costs coverage on ConvFinQA ($-$1.8 points, 36 against 63 discordant) and
+MultiHiertt ($-$0.8, 50 against 58): the dependencies themselves consume space needed
+for other facts, as Section~1 anticipates. Length-matched packing is worse than O throughout, so extra neighbouring context
+alone does not preserve what a question needs.
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{2pt}
+\input{generated/coverage.tex}
+\caption{Questions with all gold evidence retained (\%). D+/O+ counts questions kept
+only by D or only by O; $p$ is a two-sided sign test on those counts. Exact values
+over every scorable development question.}
+\label{tab:coverage}
+\end{table}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{generated/coverage.pdf}
+\caption{Gold evidence retained against evidence cap, on full development splits.}
+\label{fig:coverage}
+\end{figure}
+
+\subsection{Effect of packing on answers}
+\IfFileExists{generated/block_a_note.tex}{\input{generated/block_a_note.tex}}{}
+Table~\ref{tab:blocka} covers all 50 sampled questions per dataset, or 45 turns in 15
+conversations for ConvFinQA. D scores at least as high as O on all six datasets, by 0
+to 11.3 points. The interval excludes zero only on TAT-QA (+11.3, [+4.1, +19.9]).
+MultiHiertt (+9.8) and FinQA (+2.0) reach zero at their lower bound, and the other
+three include it. With six uncorrected comparisons, only the TAT-QA gain is
+individually convincing. Taken together, the answers follow the coverage audit: gains
+are largest on hierarchical tables and on documents much larger than the budget, and
+absent on ConvFinQA, whose documents nearly fit. Length-matched packing is lowest on
+four datasets but highest on FinQA, so on FinQA's short documents nearby text works
+as well as structure.
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{2.4pt}
+\input{generated/block_a.tex}
+\caption{Block A: paired answer scores (\%). All sampled questions; abstained and
+rejected answers score zero. Official execution accuracy for FinQA and ConvFinQA,
+official F1 otherwise.}
+\label{tab:blocka}
+\end{table}
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{2.4pt}
+\input{generated/block_a_status.tex}
+\caption{Block A answer status (\%), over all three methods. ``No program'' answers
+are valid but have no official FinQA program, so they score zero officially.}
+\label{tab:blockastatus}
+\end{table}
+
+\subsection{Does the executor help?}
+\label{sec:executor}
+Table~\ref{tab:blockb} shows no consistent accuracy gain. Direct answering is ahead
+on HybridQA by 16.4 points, with an interval excluding zero. This is plausible, since
+HybridQA answers are short text spans with no arithmetic to delegate, and requiring
+verbatim quotes encourages spans longer than the gold answer.
+
+The executor's apparent 22.1-point lead on MultiHiertt does not survive scrutiny.
+Direct answers often give the same value in percentage form ($-29.92$ for a gold
+$-0.2992$), which the official span path scores as wrong, while programs use a
+different path. Applying the Block B relaxed rule to numeric answers on both sides
+gives 68.8 against 62.5, a difference of +6.2 with interval [$-$6.2, +20.0]. Direct
+answering gains 9 answers from this and the executor 2. We therefore do not claim an
+executor gain there. The executor's defensible value is auditability: every answer
+traces to specific evidence, and unsupported numbers are rejected.
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{2.4pt}
+\input{generated/block_b.tex}
+\caption{Block B: executor against direct answering on the same evidence (\%). F1,
+except the auxiliary numeric measure for FinQA and ConvFinQA. The MultiHiertt row is
+official F1; the like-for-like difference is +6.2, as explained in the text.}
+\label{tab:blockb}
+\end{table}
+
+\subsection{Failure analysis}
+The earlier pipeline was reported to reach 2 of 883 FinQA development questions with
+a local quantised model, with about 90\% of outputs failing validation; those raw
+outputs are not available to us, so we cite this only as recorded. Both the model
+and the output format changed, so the improvement cannot be credited to the format
+alone. Table~\ref{tab:errors} classifies every uncredited executor answer in Block B.
+Validation failures are now rare, and most errors are real reasoning mistakes.
+Numeric datasets mainly fail through wrong values, such as reversed percentage-change
+directions. HybridQA and TAT-QA mainly fail through wrong or over-long spans.
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{2.4pt}
+\input{generated/errors.tex}
+\caption{Block B uncredited executor answers by cause, counted against the primary
+official measure (execution accuracy for FinQA and ConvFinQA, full F1 otherwise):
+wrong value (Val), wrong sign, wrong span or text (Span), value not in evidence
+(Grnd), abstained (Abst), other.}
+\label{tab:errors}
+\end{table}
 
 \section{Big Data preparation}
-The Spark workload prepares partitioned Parquet tables for documents, questions,
-and facts, joins questions to documents, explodes dependency edges, checks unresolved
-links, and computes exact content overlap. A Python reference computes equivalent
-canonical results. Repeated source contexts are deduplicated, not counted as new
-questions. Commands prepare 100, 1,000, and full-source sizes using real records;
-actual counts must be reported. Measurements include wall time, sampled process-tree
-RSS, output size, and Spark event logs for spill/task analysis. Local Spark on one
-laptop is not a distributed-cluster scalability result. A verified local[1]
-Spark 4.2.0 run matched the Python reference: 25 joined questions, 5733 dependency
-edges, zero unresolved edges; Spark wall time was 8.129 seconds. The sampled
-process-tree peak RSS was 835276800 bytes (0.1-second sampling; shared pages may
-be counted twice). This is a small correctness check, not a scale or speedup result.
-The development overlap audit found 218 shared unique table/content keys between
-ConvFinQA and FinQA, and 273 between TAT-HQA and TAT-QA; labels were not used.
+Spark prepares partitioned Parquet tables of documents, questions and facts, explodes
+dependency edges, checks that all edges resolve, and computes exact content overlap.
+Deduplicating repeated contexts keeps each fact stored once. A Python implementation
+computes the same results, and the job fails unless Spark matches it exactly.
+\IfFileExists{generated/spark_note.tex}{\input{generated/spark_note.tex}}{Spark timing results are pending.}
+\IfFileExists{generated/spark.tex}{
+\begin{table}[t]
+\centering\small\setlength{\tabcolsep}{2.4pt}
+\input{generated/spark.tex}
+\caption{Wall time in seconds for the same joins and checks in single-process Python
+and in Spark at 1, 2, 4 and 8 cores. Size is records read per source dataset (100,
+1,000, or the full split). All runs equal the Python reference. Peak GB is sampled
+process-tree memory.}
+\label{tab:spark}
+\end{table}}{}
+These are single-machine results and are not a distributed-cluster scalability claim.
 
-\input{generated/bounded_results.tex}
-
-Local Ollama generation used qwen2.5:7b-instruct, Q4\_K\_M, digest
-\texttt{845dbda0ea48ed74} (full digest in frozen metadata), an 8192-token context,
-2048 reserved output tokens, temperature zero, top-p one, seed 2626, and a
-3000-byte conservative evidence cap. Prompt, schema and generation settings
-are unchanged for the bounded evaluation. Two independent dataset workers use
-separate exclusive-lock SQLite ledgers; each conversation and method history
-remains sequential and prediction-only. New dispatch stops after 3.5 hours,
-leaving at least one hour of the five-hour budget for scoring and delivery.
-Inflight requests are preserved and never automatically retried. Official scorer
-hashes and failure details accompany the measurements.
-
-\input{generated/output_audit.tex}
-
-\input{generated/revised_results.tex}
-\IfFileExists{generated/grounded_recovery.tex}{\input{generated/grounded_recovery.tex}}{}
+\section{Conclusion}
+Keeping each fact's labels with it when evidence must be cut preserves more of the
+evidence a question needs. The effect is clear in a full-split audit and largest where
+documents far exceed the budget. At the answer level the direction agrees on all six
+datasets, but free-tier sample sizes make most single gains uncertain. Two further
+findings came from checking our own pipeline. The earlier offset-based pipeline failed
+almost completely, and the copy-and-resolve format replaced it; because the model also
+changed, we do not credit the format alone. An arithmetic executor gives auditability
+without a reliable accuracy gain.
 
 \section{Reproducibility}
-The project includes configuration-driven freeze, preparation, mock, live, evaluation,
-overlap, resource-measurement and aggregation commands. Frozen files contain IDs,
-seeds, source hashes, input hashes, prompts, schemas, decoding settings and code hashes.
-Changed code or data requires a new versioned freeze. Provider metadata and resolved
-models are pinned across resumes. Evaluator sources and dependencies are hashed.
-The environment snapshot and exact ordinary-WSL sequence are saved with the project.
-Credentials are excluded from delivery artifacts and model inputs. The original
-implementation and supplied LaTeX files are preserved; this report copies the lowercase
-style filename for case-sensitive compilation.
+Each run has a frozen contract holding question IDs, seeds, source and input hashes,
+prompts, schemas, settings and source-code hashes. A SQLite ledger stores every raw
+response, so scoring and re-parsing need no further model calls. Run manifests record
+the resolved model. Official evaluators are fetched at pinned commits, and all report
+tables are generated from saved outputs by a single script.
 
 \section{Limitations}
-Most saved model outputs are invalid or abstentions. The HybridQA linked evidence corpus is
-missing. All MultiHiertt splits now have real-input validation; its unused cached
-descriptions contain 61 coordinates without matching HTML cells, which remain
-disclosed rather than repaired with invented values. Hosted-model
-pretraining contamination cannot be audited. Lexical retrieval can miss paraphrases;
-header/unit inference is conservative and sometimes wrong. Unknown units do not prove
-semantic compatibility. Whole-fact packing may waste budget, provider counts include
-different framing, and context matching is approximate. Development subsets are small and cannot establish full benchmark performance.
-Hidden-test scoring availability remains unverified; only development results are reported.
-No training, distributed cluster, six-dataset validation, or novel reasoning architecture is claimed.
-The restricted arithmetic ablation cannot represent general multi-step calculations. Its effects combine instruction, schema and supported-plan restrictions; they do not isolate a single causal component. Local execution does not guarantee official exportability or answer correctness.
+Samples are small, and intervals are wide. Evidence coverage counts presence, not
+correct use. Headers are inferred and can be wrong. Token budgets are estimates, and
+BM25 misses paraphrases. Hosted model behaviour cannot be fully audited and can change.
+Free-tier quotas limited sample sizes, and a block interrupted by a quota stop resumes
+under final code, with saved answers re-parsed rather than re-requested. Two datasets,
+TAT-HQA and MultiHiertt, were added to the assigned four, and ConvFinQA and HybridQA
+hidden-test labels are unavailable, so we report development results only. No model
+was trained and no novel reasoning architecture is claimed.
 
 \bibliography{references}
 \bibliographystyle{acl_natbib}

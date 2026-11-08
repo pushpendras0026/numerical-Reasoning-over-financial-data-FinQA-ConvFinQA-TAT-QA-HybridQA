@@ -15,5 +15,5 @@
   "sample_size": 20,
   "dataset": "tathqa",
   "split": "test",
-  "source": "../TAT-HQA/dataset_test_hqa/tathqa_dataset_dev.json"
+  "source": "third_party/TAT-HQA/dataset_test_hqa/tathqa_dataset_dev.json"
 }

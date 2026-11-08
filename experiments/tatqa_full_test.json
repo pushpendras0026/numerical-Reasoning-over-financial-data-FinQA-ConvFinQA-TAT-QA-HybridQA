@@ -15,5 +15,5 @@
   "sample_size": 20,
   "dataset": "tatqa",
   "split": "test_gold_release",
-  "source": "../TAT-QA/dataset_raw/tatqa_dataset_test_gold.json"
+  "source": "data/TAT-QA/tatqa_dataset_test_gold.json"
 }

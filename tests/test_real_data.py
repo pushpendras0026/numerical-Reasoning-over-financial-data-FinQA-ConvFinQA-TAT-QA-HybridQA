@@ -15,14 +15,14 @@ from nrqa.data_validation import audit_hybrid,check_example
 from nrqa.scoring import official_score,convert_output
 from nrqa.core import PredictionExample,ReferenceRecord
 
-DEV=ROOT.parent/'MultiHiertt_data/multihiertt_data/dev.json'
+DEV=ROOT/'data/MultiHiertt/dev.json'
 
 class PathsAndMissingCorpus(unittest.TestCase):
     def test_explicit_root_override(self):
         with patch.dict('os.environ',{'NRQA_MULTIHIERTT_ROOT':'/tmp/nrqa-alternate-data'}):
-            self.assertEqual(source_path({'dataset':'multihiertt','source':'../other/dev.json'}),Path('/tmp/nrqa-alternate-data/dev.json'))
+            self.assertEqual(source_path({'dataset':'multihiertt','source':'../other/dev.json'}),Path('/tmp/nrqa-alternate-data/dev.json').resolve())
         with patch.dict('os.environ',{'NRQA_HYBRIDQA_CORPUS':'/tmp/explicit-missing-corpus'}):
-            self.assertEqual(corpus_path({'corpus':'auto'}),Path('/tmp/explicit-missing-corpus'))
+            self.assertEqual(corpus_path({'corpus':'auto'}),Path('/tmp/explicit-missing-corpus').resolve())
     def test_missing_resources_block_every_affected_question(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'dev.json';path.write_text(json.dumps([
@@ -68,11 +68,11 @@ class RealMultiHiertt(unittest.TestCase):
         self.assertIsInstance(convert_output('multihiertt',raw['uid'],result)['predicted_ans'],float)
         ex=PredictionExample('multihiertt','contract','dev',raw['uid'],raw['qa']['question'],{},())
         with tempfile.TemporaryDirectory() as tmp:
-            score=official_score('multihiertt',[ex],[ReferenceRecord(ex.id,raw['qa'])],{ex.id:result},tmp,ROOT.parent)
+            score=official_score('multihiertt',[ex],[ReferenceRecord(ex.id,raw['qa'])],{ex.id:result},tmp,ROOT/'third_party')
             self.assertEqual(score['metrics']['em'],1)
-    @unittest.skipUnless((ROOT.parent/'MultiHiertt_data/multihiertt_data/train.json').exists(),'Real train split absent')
+    @unittest.skipUnless((ROOT/'data/MultiHiertt/train.json').stat().st_size>1000,'Real train split is a Git LFS pointer')
     def test_real_section_unit_cycle_regression(self):
-        rows=json.loads((ROOT.parent/'MultiHiertt_data/multihiertt_data/train.json').read_text())
+        rows=json.loads((ROOT/'data/MultiHiertt/train.json').read_text())
         row=next(r for r in rows if r['uid']=='c828c7a59c2840a6a5927228bc746f8f')
         ex,_=multi(row,'train','real-train',0);check_example(ex)
         facts={f.id:f for f in ex.facts}

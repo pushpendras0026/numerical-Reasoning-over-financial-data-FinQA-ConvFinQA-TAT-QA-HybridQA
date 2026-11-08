@@ -15,5 +15,5 @@
   "sample_size": 20,
   "dataset": "finqa",
   "split": "test",
-  "source": "../FinQA/dataset/test.json"
+  "source": "data/FinQA/test.json"
 }

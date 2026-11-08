@@ -87,7 +87,7 @@ class OpenAIIntegration(unittest.TestCase):
             self.assertFalse(p.verify_free()['account_check']['independently_verified'])
             req = request('q', bundle, p.identity, SETTINGS)
             with tempfile.TemporaryDirectory() as tmp:
-                ledger = Ledger(Path(tmp) / 'cache.sqlite', p)
+                ledger = Ledger(Path(tmp) / 'cache.sqlite', p, sleep=lambda _: None)
                 try:
                     if quota:
                         with self.assertRaises(StopRun): ledger.predict(req, bundle)
@@ -103,7 +103,7 @@ class OpenAIIntegration(unittest.TestCase):
                         self.assertFalse(sent['store'])
                         self.assertNotIn('tools', sent)
                         self.assertEqual(p.clean(ENV['OPENAI_API_KEY']), '[REDACTED]')
-                    self.assertEqual(http.generations(), 1)
+                    self.assertEqual(http.generations(), 8 if quota else 1)  # Rate waits are bounded.
                 finally:
                     ledger.close()
 

@@ -15,7 +15,7 @@
   "sample_size": 5,
   "dataset": "convfinqa",
   "split": "test",
-  "source": "../ConvFinQA/data.zip",
+  "source": "data/ConvFinQA/data.zip",
   "member": "data/test_private.json",
   "selection_note": "5 whole conversations; report actual turns, not 20 questions"
 }

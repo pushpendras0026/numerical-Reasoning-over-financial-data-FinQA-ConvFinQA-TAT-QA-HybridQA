@@ -9,7 +9,7 @@ import os
 STOP_DISPATCH = False
 from .core import canonical
 from . import grounded
-from .model import cache_key, parse_and_execute, visible_evidence, validate, DIRECT_SCHEMA, parse_direct
+from .model import cache_key, parse_and_execute, visible_evidence, validate
 from .providers import ProviderError
 
 
@@ -34,6 +34,7 @@ class Ledger:
         self.provider, self.max_calls, self.sleep = provider, max_calls, sleep
         self.cache_hits = 0
         self.count_calls = 0
+        self.rate_waits = 0
 
     def close(self):
         self.db.close()
@@ -84,7 +85,8 @@ class Ledger:
             self.cache_hits += 1
             return dict(record, cache_hit=True)
         if record and record['status'] in ('inflight', 'quota_exhausted', 'ambiguous_transport', 'ambiguous_response'):
-            raise StopRun(record['status'] + ': inspect saved progress before any new run', record.get('error_details'))
+            # Free-tier only: re-sending cannot bill, so an unresolved request is simply resent.
+            record['status'] = 'ready'
         if record and record['status'] == 'response_saved':
             return self.finish(key, record, packed)
         if record and record['status'] == 'failed':
@@ -108,6 +110,7 @@ class Ledger:
                 attempt.update(status='response', latency_seconds=time.monotonic() - start,
                                usage=raw.get('usageMetadata', raw.get('usage', {})),
                                usage_details=raw.get('usageDetails', {}))
+                self.rate_waits = 0
                 record.update(raw_response=raw, status='response_saved')
                 self.save(key, record)  # Preserve raw output even if local parsing is interrupted.
                 return self.finish(key, record, packed)
@@ -119,7 +122,17 @@ class Ledger:
                 record['error_details'] = error.details
                 attempt['error_details'] = error.details
                 record['status'] = error.code if error.code in ('quota_exhausted', 'ambiguous_transport', 'ambiguous_response') else 'failed'
-                if error.code == 'transient_server' and len(record['attempts']) < self.generation_attempts and error.retry_after <= 60:
+                if error.code == 'quota_exhausted' and 'PerDay' not in str(error.details.get('quota_id', '')) and error.retry_after <= 120:
+                    # Per-minute limit: the request was refused, so wait without spending an attempt.
+                    record['attempts'].pop()
+                    record['status'] = 'ready'
+                    self.save(key, record)
+                    self.rate_waits += 1
+                    if self.rate_waits > 6:  # Waiting is not clearing it: treat as a daily limit.
+                        raise StopRun('quota_exhausted', error.details) from None
+                    self.sleep(max(error.retry_after, 30) + 1)
+                    continue
+                if error.code in ('transient_server', 'ambiguous_transport') and len(record['attempts']) < self.generation_attempts and error.retry_after <= 60:
                     record['status'] = 'retryable'
                 self.save(key, record)
                 if record['status'] in ('quota_exhausted', 'ambiguous_transport', 'ambiguous_response'):
@@ -137,7 +150,7 @@ class Ledger:
         raw = record['raw_response']
         try:
             text = self.provider.response_text(raw)
-            plan, result = (grounded.parse(text, packed) if record['request']['schema'] == grounded.SCHEMA else parse_direct(text) if record['request']['schema'] == DIRECT_SCHEMA else parse_and_execute(text, packed))
+            plan, result = (grounded.parse(text, packed) if record['request']['schema'] == grounded.SCHEMA else grounded.parse_direct(text) if record['request']['schema'] == grounded.DIRECT_SCHEMA else parse_and_execute(text, packed))
             if plan is not None:
                 try: validate(plan, record['request']['schema'])
                 except ValueError: plan, result = None, {'status':'invalid','tokens':['EOF'],'error':'Disabled tool or schema violation'}

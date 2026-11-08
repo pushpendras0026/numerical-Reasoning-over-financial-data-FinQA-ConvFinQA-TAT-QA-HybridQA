@@ -9,7 +9,7 @@ from nrqa.execute import NUMBER, number, execute
 from nrqa.evaluation import score
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT.parent / 'FinQA/dataset/train.json'
+RAW = ROOT / 'third_party/FinQA/dataset/train.json'
 OUT = ROOT / 'artifacts/local_finqa'
 
 
@@ -67,7 +67,7 @@ def main():
     write('official_predictions.json', predictions)
     # Official scorer needs the original reference record shape, evaluation only.
     write('official_references.json', raw[:10])
-    scorer = ROOT.parent / 'FinQA/code/evaluate/evaluate.py'
+    scorer = ROOT / 'third_party/FinQA/code/evaluate/evaluate.py'
     metrics = score(predictions, [s['id'] for s in specs], OUT / 'official_predictions.json',
                     OUT / 'official_references.json', scorer)
     write('fixture_metrics.json', metrics)

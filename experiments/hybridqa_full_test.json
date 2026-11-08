@@ -15,7 +15,7 @@
   "sample_size": 20,
   "dataset": "hybridqa",
   "split": "test",
-  "source": "../HybridQA/released_data/test.json",
+  "source": "data/HybridQA/test.json",
   "corpus": "auto",
   "corpus_candidates": [
     "data/WikiTables-WithLinks",

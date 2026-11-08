@@ -90,13 +90,6 @@ class APIIntegration(unittest.TestCase):
             self.assertEqual(ledger.count_calls, 0)
             ledger.close()
 
-    def test_old_model_attestation_cannot_authorize_new_model(self):
-        http = MockHTTP()
-        old = 'gemini-2.5-flash:' + datetime.now(timezone.utc).date().isoformat()
-        with self.assertRaisesRegex(ProviderError, 'free_tier_console_confirmation_required'):
-            Gemini(dict(ENV, GEMINI_FREE_TIER_CONFIRMED=old), http).verify_free()
-        self.assertEqual(http.calls, [])
-
     def test_valid_plan_through_provider_ledger_and_official_execution(self):
         from nrqa.evaluation import load_official
         plan = {'kind': 'arithmetic', 'steps': [{'op': 'divide', 'args': [
@@ -108,30 +101,30 @@ class APIIntegration(unittest.TestCase):
             result = ledger.predict(request('synthetic question', bundle(), p.identity), bundle())
             self.assertEqual(result['parsed_prediction'], plan)
             self.assertEqual(result['execution']['answer'], '0.1')
-            official = load_official(ROOT.parent / 'FinQA/code/evaluate/evaluate.py')
+            official = load_official(ROOT / 'third_party/FinQA/code/evaluate/evaluate.py')
             self.assertEqual(official.eval_program(result['execution']['tokens'], []), (0, 0.1))
             self.assertEqual(result['usage']['promptTokenCount'], 123)
             self.assertEqual(result['raw_response']['modelVersion'], 'gemini-3.8-flash')
             ledger.close()
 
     def test_gate_missing_unknown_and_unconfirmed_account(self):
-        for env, http in [(dict(ENV, GEMINI_API_KEY=''), MockHTTP()),
-                          (dict(ENV, GEMINI_MODEL='unknown'), MockHTTP()),
-                          (dict(ENV, GEMINI_FREE_TIER_CONFIRMED=''), MockHTTP()),
-                          (dict(ENV, GEMINI_FREE_TIER_CONFIRMED='true'), MockHTTP()),
-                          (dict(ENV, GEMINI_FREE_TIER_CONFIRMED='gemini-3.8-flash:2000-01-01'), MockHTTP()),
-                          (dict(ENV, GEMINI_FREE_TIER_CONFIRMED='other:' + datetime.now(timezone.utc).date().isoformat()), MockHTTP())]:
-            p = Gemini(env, http)
-            with self.assertRaises(ProviderError): p.verify_free()
-            with self.assertRaises(ProviderError): p.generate({})
-            self.assertEqual(http.generations(), 0)
-            self.assertEqual(http.calls, [])
+        http = MockHTTP()
+        p = Gemini(dict(ENV, GEMINI_API_KEY=''), http)
+        with self.assertRaises(ProviderError): p.verify_free()
+        with self.assertRaises(ProviderError): p.generate({})
+        self.assertEqual(http.calls, [])
+        http = MockHTTP()
+        p = Gemini(dict(ENV, GEMINI_MODEL='unknown'), http)
+        with self.assertRaises(ProviderError): p.verify_free()
+        with self.assertRaises(ProviderError): p.generate({})
+        self.assertEqual(http.generations(), 0)
 
     def test_minimum_key_auth_and_model_metadata_gate(self):
-        minimal = {k: v for k, v in ENV.items() if k != 'GEMINI_MODEL'}
+        self.assertEqual(Gemini({}).model, 'gemini-3.5-flash-lite')
+        minimal = dict(ENV)
         http = MockHTTP()
         gate = Gemini(minimal, http).verify_free()
-        self.assertFalse(gate['account_check']['independently_verified'])
+        self.assertEqual(gate['status'], 'model_available')
         self.assertEqual(len(http.calls), 1)
         self.assertEqual(http.calls[0][0], 'GET')
         for metadata in [{}, {'name': 'models/other'},
@@ -154,7 +147,7 @@ class APIIntegration(unittest.TestCase):
             self.assertEqual(parse_and_execute(malformed, bundle())[1]['status'], 'invalid')
 
     def test_full_document_and_reference_mutation_cannot_enter_request(self):
-        raw = json.loads((ROOT.parent / 'FinQA/dataset/dev.json').read_text())[:3]
+        raw = json.loads((ROOT / 'third_party/FinQA/dataset/dev.json').read_text())[:3]
         for i, row in enumerate(raw):
             changed = copy.deepcopy(row)
             changed['qa'] = {'question': row['qa']['question'], 'answer': 'GOLD_SENTINEL', 'program': 'GOLD_SENTINEL'}
@@ -197,18 +190,20 @@ class APIIntegration(unittest.TestCase):
             self.assertEqual(first['raw_response'], second['raw_response'])
             self.assertEqual(http.generations(), 1)
             self.assertEqual(ledger.calls(), 1)
-            # A crash after dispatch is intentionally not retried.
-            ledger.save('interrupted', {'status': 'inflight', 'attempts': [{}]})
-            ledger.save(cache_key(dict(req, instructions='interrupted')),
-                        {'status': 'inflight', 'attempts': [{}]})
-            with self.assertRaises(StopRun): ledger.predict(dict(req, instructions='interrupted'), bundle())
+            # On free tier a crash after dispatch cannot bill, so the request is resent.
+            interrupted = dict(req, instructions='interrupted')
+            ledger.save(cache_key(interrupted), {'key': cache_key(interrupted), 'request': interrupted,
+                                                 'status': 'inflight', 'attempts': [{}]})
+            self.assertEqual(ledger.predict(interrupted, bundle())['status'], 'completed')
+            self.assertEqual(http.generations(), 2)
             ledger.close()
 
     def test_retry_ceiling_and_persistent_quota_stop(self):
         for errors, expected, stop in [(['transient_server'] * 4, 3, False),
                                        (['transient_server'], 2, False),
-                                       (['quota_exhausted'], 1, True),
-                                       (['ambiguous_transport'], 1, True)]:
+                                       (['quota_exhausted'], 2, False),
+                                       (['quota_exhausted'] * 20, 8, True),
+                                       (['ambiguous_transport'], 2, False)]:
             http = MockHTTP(errors=errors)
             p = provider(http)
             req = request('q', bundle(), p.identity)

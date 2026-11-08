@@ -20,3 +20,23 @@ node_modules/
 __pycache__/
 *.pyc
 artifacts/
+
+# Upstream checkouts fetched by scripts/fetch_upstream.sh
+third_party/
+data/WikiTables-WithLinks/
+
+# LaTeX build output
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+
+# Manim render cache and logs
+presentation/video/media/
+presentation/video/__pycache__/
+presentation/video/render*.log
+
+# Review scratch and macOS metadata
+.review/
+.DS_Store

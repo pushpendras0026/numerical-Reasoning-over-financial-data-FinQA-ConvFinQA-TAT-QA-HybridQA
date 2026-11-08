@@ -3,8 +3,10 @@ import re
 from decimal import Decimal, DecimalException, localcontext
 
 NUMBER=re.compile(r'[-+]?\d[\d,]*(?:\.\d+)?\s*%?')
-CONSTANTS={s:Decimal(s) for s in ('1','100','1000','1000000')}
-SCALES={'','thousand','million','billion','percent'}
+# Constant names accepted by the official FinQA/ConvFinQA program language.
+CONSTANTS={s:Decimal(s) for s in ('1','2','3','4','5','6','7','10','12','100','1000','10000','100000','1000000')}
+CONSTANTS['m1']=Decimal(-1)
+SCALES={'','thousand','million','billion','percent','percent_fraction'}
 OPS={'add','subtract','multiply','divide','greater','less','equal','exp','min','max'}
 
 
@@ -32,7 +34,12 @@ def execute(plan,evidence):
         if set(arg)=={'constant'}:return CONSTANTS[arg['constant']],'const_'+arg['constant'],'constant'
         f,raw=span(arg);key=(arg['fact'],arg['start'],arg['end'])
         a,b=arg['start'],arg['end']
-        if (a>0 and f['raw'][a-1] in '0123456789.,') or (b<len(f['raw']) and f['raw'][b] in '0123456789.%'):
+        raw_text=f['raw']
+        # A '.' or ',' only continues a number when a digit sits on its far side;
+        # sentence punctuation ("was 123.") must not reject a complete literal.
+        before=a>0 and (raw_text[a-1].isdigit() or (raw_text[a-1] in '.,' and a>1 and raw_text[a-2].isdigit()))
+        after=b<len(raw_text) and (raw_text[b] in '0123456789%' or (raw_text[b] in '.,' and b+1<len(raw_text) and raw_text[b+1].isdigit()))
+        if before or after:
             raise ValueError('Partial numeric literal')
         value=overrides.get(key,number(raw));symbol=raw.replace(',','').replace('$','').replace(' ','').strip()
         if '(' in symbol or ')' in symbol:symbol=str(number(raw))
@@ -52,7 +59,7 @@ def execute(plan,evidence):
     def emit(op,args):
         a,at,au=resolve(args[0]);b,bt,bu=resolve(args[1])
         if isinstance(a,str) or isinstance(b,str):raise ValueError('Numeric operands required')
-        if op in ('add','subtract','greater','less','equal','min','max') and au!=bu and not {'unknown','derived'}&{au,bu}:raise ValueError('Unit mismatch')
+        if op in ('add','subtract','greater','less','equal','min','max') and au!=bu and not {'unknown','derived','constant'}&{au,bu}:raise ValueError('Unit mismatch')
         if op=='add':value=a+b
         elif op=='subtract':value=a-b
         elif op=='multiply':value=a*b

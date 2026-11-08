@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class LocalMilestone(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.raw = json.loads((ROOT.parent / 'FinQA/dataset/train.json').read_text())[:10]
+        cls.raw = json.loads((ROOT / 'third_party/FinQA/dataset/train.json').read_text())[:10]
 
     def example(self, record=None):
         return convert(record or self.raw[0], 'train', '../FinQA/dataset/train.json', 0)[0]
@@ -99,7 +99,7 @@ class LocalMilestone(unittest.TestCase):
         self.assertIsNone(result['tokens'])  # No fabricated FinQA identity program.
 
     def test_official_semantics_and_coverage(self):
-        official = load_official(ROOT.parent / 'FinQA/code/evaluate/evaluate.py')
+        official = load_official(ROOT / 'third_party/FinQA/code/evaluate/evaluate.py')
         for op, a, b, expected in [('divide', '1', '3', 0.33333),
                                    ('multiply', '-2', '25%', -0.5)]:
             invalid, answer = official.eval_program([op+'(', a, b, ')', 'EOF'], [])
