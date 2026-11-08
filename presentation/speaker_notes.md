@@ -6,6 +6,15 @@ play the visualization and narrate it from the table below. Each visualization i
 to its narration at about 140 words per minute. Speaker A takes slides 1 to 8 (problem
 and method), Speaker B slides 9 to 16 (implementation, experiment, results).
 
+## Crux video (4:32)
+
+For a short talk, skip the individual **→ show** cues below and play `video/crux.mp4`
+once, after **slide 9** (Dependency graph and packing). Say: "This is how the approach
+works, from the problem, through the paper we started from, to our method on real data."
+It joins four clips, narrated from the table below: A number needs its labels (0:00),
+The reference pipeline (0:44), Our idea: a graph of labels (2:15), A real question,
+replayed (3:33). Then continue with slide 10.
+
 ## Slide script
 
 **1. Title (A).** "We study how to fit large financial tables into a language model's fixed context window without losing what the numbers mean."

@@ -53,7 +53,7 @@ measure for FinQA and ConvFinQA, whose direct answers have no program.
 
 | Deliverable | File |
 |---|---|
-| Report (5 pages, IEEE format) | [`report/main.pdf`](report/main.pdf), source `report/main.tex` |
+| Report (8 pages, ACL 2023 format) | [`report/main.pdf`](report/main.pdf), source `report/main.tex` |
 | Slides (16) | [`presentation/slides.pdf`](presentation/slides.pdf), source `presentation/slides.tex` |
 | Visualizations (12 Manim clips, 1080p) | [`presentation/video/clips/`](presentation/video/clips/), numbered in playing order and cued in the slide script; source `presentation/video/clips.py` |
 | Presentation script | [`presentation/speaker_notes.md`](presentation/speaker_notes.md): slide script with visualization cues, and clip narration |

@@ -695,7 +695,7 @@ class Clip7Replay(Narrated):
         r = EX['replay']
         o_y, d_y = 0.75, -1.4
         x_end = -4.4 + self.paragraph_width + 0.04 + (r['ordinary']['cap'] - sum(f['cost'] for f in r['ordinary']['facts'] if f['kind'] == 'text')) * self.scale
-        names = VGroup(words('Ordinary', 28, ORD, weight='BOLD').move_to([-5.9, o_y, 0]), words('Dependency', 28, DEP, weight='BOLD').move_to([-5.9, d_y, 0]))
+        names = VGroup(words('Ordinary', 26, ORD, weight='BOLD').move_to([-5.6, o_y, 0]), words('Dependency', 26, DEP, weight='BOLD').move_to([-5.6, d_y, 0]))
         cap_lines = VGroup(*[DashedLine([x_end, y + 0.55, 0], [x_end, y - 0.4, 0], color=INK, stroke_width=3) for y in (o_y, d_y)])
         cap_tag = words(f'budget {r["ordinary"]["cap"]}', 24, INK).move_to([x_end - 0.1, (o_y + d_y) / 2 + 0.05, 0], aligned_edge=RIGHT)
         source = words('TAT-QA dev set · Block A · gemini-3.5-flash-lite · blocks to scale, paragraphs shortened', 22, MUTED).to_edge(DOWN, buff=0.25)
@@ -731,7 +731,7 @@ class Clip7Replay(Narrated):
         # The model abstains
         self.cue(5)
         reply = card(stack('"The evidence does not contain data', 'for accrued compensation in 2018"  →  abstained, score 0', size=24), RULE, pad=0.12)
-        reply.move_to([0.4, o_y - 0.98, 0])
+        reply.move_to([0.1, o_y - 0.98, 0])
         self.play(FadeIn(reply), run_time=0.8)
 
         # Dependency: labels once, 3 tokens per cell; 358 fits
